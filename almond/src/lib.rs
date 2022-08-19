@@ -1,133 +1,289 @@
-use core::cmp::Ordering;
+// use core::cmp::Ordering;
+use std::fmt;
 
-pub enum OutputType {
-    Literal,
-    Vec(Vec<Literal>),
-}
-
-pub enum Literal {
-    String(String),
-    Int(i64),
-    Float(f64),
+#[derive(Clone, Debug)]
+pub enum BaseOutput {
+    Str(String),
     Bool(bool),
-    Ref(),
+    Int(i32),
+    Float(f64),
+    Path(RefPath),
 }
 
-pub trait Variable {
-    fn get(&self) -> OutputType;
-}
+pub trait Output {
+    type Group;
 
-pub struct Basic {
-    pub value: OutputType,
-}
-
-impl Variable for Basic {}
-
-impl Ord for Basic {
-    fn cmp(&self, other: &Self) -> Ordering {
-        let self_val = self.get();
-        let other_val = other.get();
+    fn len(&self) -> usize {
+        0
     }
 }
 
-impl PartialOrd for Basic {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {}
+#[derive(Clone, Debug)]
+pub struct RefPath {
+    pub parts: Vec<String>,
 }
 
-impl Eq for Basic {}
+impl Output for BaseOutput {
+    type Group = BaseOutput;
 
-impl PartialEq for Basic {
-    fn eq(&self, other: &Self) {}
+    fn len(&self) -> usize {
+        match self {
+            BaseOutput::Str(e) => e.as_bytes().len(),
+            BaseOutput::Bool(e) => e.to_string().as_bytes().len(),
+            BaseOutput::Int(e) => e.to_string().as_bytes().len(),
+            BaseOutput::Float(e) => e.to_string().as_bytes().len(),
+            BaseOutput::Path(e) => e.to_string().as_bytes().len(),
+        }
+    }
+}
+
+impl<T: Output> Output for Vec<T> {
+    type Group = Vec<T>;
+
+    fn len(&self) -> usize {
+        self.len()
+    }
+}
+
+impl fmt::Display for RefPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut out: String = "".to_owned();
+
+        for i in self.parts.iter() {
+            out.push('/');
+            out.push_str(i.as_str())
+        }
+
+        write!(f, "{}", out)
+    }
 }
 
 /*
-// =============== Output = String ===============
-
-impl Ord for dyn Variable<Output = String> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.get().cmp(other.get())
+impl Ord for OutputType {
+    fn cmp(&self, other: &OutputType) -> Ordering {
+        match (self, other) {
+            (OutputType::Literal(e), OutputType::Literal(s)) => e.cmp(s),
+            _ => Ordering::Less,
+        }
     }
 }
 
-impl PartialOrd for dyn Variable<Output = String> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+impl PartialOrd for OutputType {
+    fn partial_cmp(&self, other: &OutputType) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<T: Variable<Output = i64>> PartialOrd<T> for dyn Variable<Output = String>
-where
-    (dyn Variable<Output = String>): PartialEq<T>,
-{
-    fn partial_cmp(&self, other: &T) -> Option<Ordering> {
-        Some(self.get().cmp(&other.get().to_string()))
+impl PartialOrd<String> for OutputType {
+    fn partial_cmp(&self, other: &String) -> Option<Ordering> {
+        if let OutputType::Literal(e) = self {
+            return e.partial_cmp(other);
+        }
+
+        Some(Ordering::Less)
     }
 }
 
-impl Eq for dyn Variable<Output = String> {}
-
-impl PartialEq for dyn Variable<Output = String> {
-    fn eq(&self, other: &Self) -> bool {
-        self.get() == other.get()
+impl PartialOrd<OutputType> for String {
+    fn partial_cmp(&self, other: &OutputType) -> Option<Ordering> {
+        Some(other.partial_cmp(self)?.reverse())
     }
 }
 
-impl<T: Variable<Output = i64>> PartialEq<T> for dyn Variable<Output = String>
-where
-    (dyn Variable<Output = String> + 'static): PartialEq<T>,
-{
-    fn eq(&self, other: &T) -> bool {
-        self.get() == &other.get().to_string()
+impl Eq for OutputType {}
+
+impl PartialEq for OutputType {
+    fn eq(&self, other: &OutputType) -> bool {
+        match (self, other) {
+            (OutputType::Literal(e), OutputType::Literal(s)) => e == s,
+            _ => false,
+        }
     }
 }
 
-// =============== Output = i64 ===============
+impl PartialEq<String> for OutputType {
+    fn eq(&self, other: &String) -> bool {
+        if let OutputType::Literal(e) = self {
+            return e == other;
+        }
 
-impl Ord for dyn Variable<Output = i64> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.get().cmp(other.get())
+        false
     }
 }
 
-impl PartialOrd for dyn Variable<Output = i64> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+impl PartialEq<OutputType> for String {
+    fn eq(&self, other: &OutputType) -> bool {
+        other == self
+    }
+}
+
+impl Ord for Literal {
+    fn cmp(&self, other: &Literal) -> Ordering {
+        match (self, other) {
+            (Literal::Str(e), Literal::Str(s)) => e.cmp(s),
+            _ => Ordering::Less,
+        }
+    }
+}
+
+impl PartialOrd for Literal {
+    fn partial_cmp(&self, other: &Literal) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<T: Variable<Output = String>> PartialOrd<T> for dyn Variable<Output = i64>
-where
-    (dyn Variable<Output = i64>): PartialEq<T>,
-{
-    fn partial_cmp(&self, other: &T) -> Option<Ordering> {
-        Some(self.get().to_string().cmp(other.get()))
+impl PartialOrd<String> for Literal {
+    fn partial_cmp(&self, other: &String) -> Option<Ordering> {
+        Some(self.cmp(&Literal::Str(other.to_owned())))
     }
 }
 
-impl Eq for dyn Variable<Output = i64> {}
+impl Eq for Literal {}
 
-impl PartialEq for dyn Variable<Output = i64> {
-    fn eq(&self, other: &Self) -> bool {
-        self.get() == other.get()
+impl PartialEq for Literal {
+    fn eq(&self, other: &Literal) -> bool {
+        match (self, other) {
+            (Literal::Str(e), Literal::Str(s)) => e == s,
+            _ => false,
+        }
     }
 }
 
-impl<T: Variable<Output = String>> PartialEq<T> for dyn Variable<Output = i64>
-where
-    (dyn Variable<Output = i64> + 'static): PartialEq<T>,
-{
-    fn eq(&self, other: &T) -> bool {
-        &self.get().to_string() == other.get()
+impl PartialEq<String> for Literal {
+    fn eq(&self, other: &String) -> bool {
+        self == &Literal::Str(other.to_owned())
     }
 }
 
-// =============== BasicString ===============
-
-impl Variable for BasicString {
-    type Output = String;
-
-    fn get(&self) -> &String {
-        &self.value
+impl From<String> for OutputType {
+    fn from(old: String) -> OutputType {
+        OutputType::Literal(Literal::Str(old))
     }
+}
+
+impl From<i64> for OutputType {
+    fn from(old: i64) -> OutputType {
+        OutputType::Literal(Literal::Int(old))
+    }
+}
+
+impl From<f64> for OutputType {
+    fn from(old: f64) -> OutputType {
+        OutputType::Literal(Literal::Float(old))
+    }
+}
+
+impl From<Vec<Literal>> for OutputType {
+    fn from(old: Vec<Literal>) -> OutputType {
+        OutputType::Vec(old)
+    }
+}
+
+impl From<String> for Basic {
+    fn from(old: String) -> Basic {
+        Basic {
+            value: OutputType::from(old),
+        }
+    }
+}
+
+impl From<i64> for Basic {
+    fn from(old: i64) -> Basic {
+        Basic {
+            value: OutputType::from(old),
+        }
+    }
+}
+
+impl From<f64> for Basic {
+    fn from(old: f64) -> Basic {
+        Basic {
+            value: OutputType::from(old),
+        }
+    }
+}
+
+impl From<Vec<String>> for Basic {
+    fn from(old: Vec<String>) -> Basic {
+        let mut literals: Vec<Literal> = Vec::new();
+
+        for i in old {
+            literals.push(Literal::Str(i))
+        }
+
+        Basic {
+            value: OutputType::from(literals),
+        }
+    }
+}
+
+impl From<Vec<i64>> for Basic {
+    fn from(old: Vec<i64>) -> Basic {
+        let mut literals: Vec<Literal> = Vec::new();
+
+        for i in old {
+            literals.push(Literal::Int(i))
+        }
+
+        Basic {
+            value: OutputType::from(literals),
+        }
+    }
+}
+
+impl From<Vec<f64>> for Basic {
+    fn from(old: Vec<f64>) -> Basic {
+        let mut literals: Vec<Literal> = Vec::new();
+
+        for i in old {
+            literals.push(Literal::Float(i))
+        }
+
+        Basic {
+            value: OutputType::from(literals),
+        }
+    }
+}
+
+struct Basic {
+    value: OutputType,
+}
+
+fn check_type(var: Basic) {
+    match var.value {
+        OutputType::Literal(i) => match i {
+            Literal::Str(e) => {
+                println!("Str: {}", e)
+            }
+            Literal::Int(e) => {
+                println!("Int: {}", e)
+            }
+            Literal::Float(e) => {
+                println!("Float: {}", e)
+            }
+            Literal::Path(e) => {
+                println!("Path: {:#?}", e.parts)
+            }
+        },
+        OutputType::Vec(i) => {
+            println!("Vec: {:#?}", i)
+        }
+    }
+}
+
+fn main() {
+    let s = Basic::from("nice".to_string());
+    let i = Basic::from(32);
+    let f = Basic::from(13.7);
+    let v = Basic::from(vec![1, 2, 3, 3, 4, 5]);
+
+    println!("{}", s.value < i.value);
+    println!("{}", s.value < "dice".to_owned());
+    println!("{}", "rice".to_owned() > s.value);
+    println!("{}", s.value == "nice".to_owned());
+    check_type(s);
+    check_type(i);
+    check_type(f);
+    check_type(v);
 }
 */
