@@ -1,11 +1,46 @@
 use core::cmp::Ordering;
 
-pub trait Variable {
-    type Output;
-
-    fn get(&self) -> &Self::Output;
+pub enum OutputType {
+    Literal,
+    Vec(Vec<Literal>),
 }
 
+pub enum Literal {
+    String(String),
+    Int(i64),
+    Float(f64),
+    Bool(bool),
+    Ref(),
+}
+
+pub trait Variable {
+    fn get(&self) -> OutputType;
+}
+
+pub struct Basic {
+    pub value: OutputType,
+}
+
+impl Variable for Basic {}
+
+impl Ord for Basic {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let self_val = self.get();
+        let other_val = other.get();
+    }
+}
+
+impl PartialOrd for Basic {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {}
+}
+
+impl Eq for Basic {}
+
+impl PartialEq for Basic {
+    fn eq(&self, other: &Self) {}
+}
+
+/*
 // =============== Output = String ===============
 
 impl Ord for dyn Variable<Output = String> {
@@ -88,10 +123,6 @@ where
 
 // =============== BasicString ===============
 
-pub struct BasicString {
-    pub value: String,
-}
-
 impl Variable for BasicString {
     type Output = String;
 
@@ -99,3 +130,4 @@ impl Variable for BasicString {
         &self.value
     }
 }
+*/
