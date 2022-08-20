@@ -9,9 +9,9 @@ pub enum Token {
     Assign,
     #[token(";")]
     End,
-    #[token("$")]
+    #[regex(r"\$[a-zA-Z][\w_]*")]
     Scope,
-    #[token("$#")]
+    #[regex(r"\$#[a-zA-Z][\w_]*")]
     IScope,
     #[token("import")]
     Import,
@@ -21,14 +21,12 @@ pub enum Token {
     Comma,
     #[token(".")]
     Access,
-    #[error]
-    Error,
     #[regex(r"[ \t\n\f]+", logos::skip)]
     Skipped,
-    #[token("/*")]
-    LComment,
-    #[token("*/")]
-    RComment,
+    #[regex(r"//[^\n]*")]
+    Comment,
+    #[error]
+    Error,
 
     // ===== containers =====
     #[token("{")]
@@ -83,10 +81,10 @@ pub enum Token {
     // ===== literal =====
     #[regex(r#""[^(\n)(\r\n)]*""#)]
     String,
-    #[regex(r"\d[\d_]*")]
-    Int,
-    #[regex(r"(\d[\d_]*)?\.(\d[\d_]*)([eE]\d[\d_]*)?")]
-    Float,
+    #[regex(r"\d[\d_]*", |lex| lex.slice().parse())]
+    Int(i64),
+    #[regex(r"(\d[\d_]*)?\.(\d[\d_]*)([eE]\d[\d_]*)?", |lex| lex.slice().parse())]
+    Float(f64),
     #[token("true")]
     True,
     #[token("false")]
