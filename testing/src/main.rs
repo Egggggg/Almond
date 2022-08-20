@@ -1,6 +1,6 @@
-use almond::{BaseOutput, BaseOutputGroup, Output};
+use api::{BaseOutput, Output};
 
-fn get() -> impl Output<Group = BaseOutputGroup> {
+fn get() -> impl Output {
     return BaseOutput::Str("epic and cool".to_owned());
 }
 
