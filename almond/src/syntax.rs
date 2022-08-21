@@ -1,7 +1,7 @@
 use logos::Logos;
 
 #[derive(Logos, Debug, PartialEq)]
-pub enum Token {
+pub enum TokenKind {
     // ===== general =====
     #[regex(r"[a-zA-Z][\w_]*")]
     Ident,
@@ -89,4 +89,68 @@ pub enum Token {
     True,
     #[token("false")]
     False,
+}
+
+type Ident = String;
+
+enum VarType {
+    String(String),
+    Int(i64),
+    Float(f64),
+    Bool(bool),
+}
+
+pub enum Expr {
+    Add(VarType, VarType),
+    Sub(VarType, VarType),
+    Mul(VarType, VarType),
+    Div(VarType, VarType),
+    Mod(VarType, VarType),
+    Exp(Statement, VarType),
+    Conditional(Condition, VarType, VarType),
+	Ref(Ref),
+	TRef(TRef),
+	Tmp(Tmp),
+}
+
+struct Ref {
+	pub to: Ident,
+}
+
+struct TRef {
+	pub to: Ident,
+}
+
+pub struct Tmp {
+	pub name: Ident,
+	pub expr: Box<Expr>,
+}
+
+enum Assignment {
+    Expr,
+    Statement,
+}
+
+struct Assign {
+    lhs: Ident,
+    rhs: Assignment,
+}
+
+struct Condition {
+    lhs: Statement,
+    comparison: Comparison,
+    rhs: Statement,
+}
+
+enum Statement {
+    VarType(VarType),
+    Ident(Ident),
+}
+
+enum Comparison {
+    Equals,
+    Lt,
+    Gt,
+    Lte,
+    Gte,
 }
