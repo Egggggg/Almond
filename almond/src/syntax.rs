@@ -1,4 +1,5 @@
 use logos::Logos;
+use std::{collections::HashMap, fmt, ops::Add};
 
 #[derive(Logos, Debug, PartialEq)]
 pub enum TokenKind {
@@ -41,10 +42,6 @@ pub enum TokenKind {
     LParen,
     #[token(")")]
     RParen,
-    #[token("'")]
-    SQuote,
-    #[token(r#"""#)]
-    DQuote,
 
     // ===== logic =====
     #[token("==")]
@@ -79,7 +76,7 @@ pub enum TokenKind {
     Exp,
 
     // ===== literal =====
-    #[regex(r#""[^(\n)(\r\n)]*""#)]
+    #[regex(r#""[^"\n]*""#)]
     String,
     #[regex(r"\d[\d_]*", |lex| lex.slice().parse())]
     Int(i64),
@@ -91,89 +88,149 @@ pub enum TokenKind {
     False,
 }
 
-type Ident<'a> = &'a str;
+type Ident = String;
 
-#[derive(Debug)]
-pub enum VarType<'a> {
-    String(&'a str),
+#[derive(Debug, Clone)]
+pub enum Raw {
+    String(String),
     Int(i64),
     Float(f64),
     Bool(bool),
 }
 
-#[derive(Debug)]
-pub enum Expr<'a> {
-    Add(Statement<'a>, Statement<'a>),
-    Sub(Statement<'a>, Statement<'a>),
-    Mul(Statement<'a>, Statement<'a>),
-    Div(Statement<'a>, Statement<'a>),
-    Mod(Statement<'a>, Statement<'a>),
-    Exp(Statement<'a>, Statement<'a>),
-    Conditional(Condition<'a>, VarType<'a>),
-	Assign(Assign<'a>),
-	Ref(Ref<'a>),
-	IRef(IRef<'a>),
-	IAssign(Intmdt<'a>),
+impl fmt::Display for Raw {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Raw::String(e) => write!(f, "{}", e),
+			Raw::Int(e) => write!(f, "{}", e),
+			Raw::Float(e) => write!(f, "{}", e),
+			Raw::Bool(e) => write!(f, "{}", e),
+		}
+	}
 }
 
-impl<'a> Expr<'a> {
-	pub fn assign_literal(ident: Ident<'a>, to: VarType<'a>) -> Expr<'a> {
-		let statement = Statement::VarType(to);
-		let assignment = Assignment::Statement(statement);
-		let assign = Assign {
-			lhs: ident,
-			rhs: assignment,
-		};
+impl Add for Raw {
+	type Output = Self;
 
-		return Expr::Assign(assign);
+	fn add(self, other: Self) -> Self {
+		match self {
+			Raw::String(e) => {
+				let other = match other {
+					Raw::String(s) => s,
+					Raw::Int(s) => s.to_string(),
+					Raw::Float(s) => s.to_string(),
+					Raw::Bool(s) => s.to_string(),
+				};
+
+				let out = e.to_owned() + &other;
+
+				Raw::String(out)
+			},
+			Raw::Int(e) => {
+				let other = match other {
+					Raw::String(s) => s.parse::<i64>().unwrap_or(0),
+					Raw::Int(s) => s,
+					Raw::Float(s) => s as i64,
+					Raw::Bool(s) => s as i64,
+				};
+
+				Raw::Int(e + other)
+			},
+			Raw::Float(e) => {
+				let other = match other {
+					Raw::String(s) => s.parse::<f64>().unwrap_or(0.0),
+					Raw::Int(s) => s as f64,
+					Raw::Float(s) => s,
+					Raw::Bool(s) => s as i8 as f64,
+				};
+
+				Raw::Float(e + other)
+			},
+			Raw::Bool(e) => {
+				self
+			}
+		}
 	}
 }
 
 #[derive(Debug)]
-struct Ref<'a> {
-	pub to: Ident<'a>,
+pub enum Expr {
+    Add(Statement, Statement),
+    Sub(Statement, Statement),
+    Mul(Statement, Statement),
+    Div(Statement, Statement),
+    Mod(Statement, Statement),
+    Exp(Statement, Statement),
+    Conditional(Condition, Statement),
+	Output(Output),
+	Ref(Ref),
+	IRef(IRef),
+	Assign(Intermediate),
+}
+
+impl<'a> Expr {
+	pub fn output_literal(ident: Ident, to: Raw) -> Expr {
+		let output = Output::Raw(to);
+
+		return Expr::Output(output);
+	}
+
+	pub fn eval(&self, data: &HashMap<&'a str, ExprChain>) -> Raw {
+		match self {
+			Expr::Output(e) => e.eval(data),
+			_ => Raw::Int(-1),
+		}
+	}
 }
 
 #[derive(Debug)]
-struct IRef<'a> {
-	pub to: Ident<'a>,
+struct Ref {
+	pub to: Ident,
 }
 
 #[derive(Debug)]
-pub struct Intmdt<'a> {
-	pub name: Ident<'a>,
-	pub expr: Box<Expr<'a>>,
+struct IRef {
+	pub to: Ident,
 }
 
 #[derive(Debug)]
-enum Assignment<'a> {
-    Expr(Box<Expr<'a>>),
-    Statement(Statement<'a>),
+pub struct Intermediate {
+	pub name: Ident,
+	pub expr: Box<Expr>,
 }
 
 #[derive(Debug)]
-struct Assign<'a> {
-    lhs: Ident<'a>,
-    rhs: Assignment<'a>,
+enum Output {
+    Expr(Box<Expr>),
+    Raw(Raw),
+}
+
+impl<'a> Output {
+	pub fn eval(&self, data: &HashMap<&'a str, ExprChain>) -> Raw {
+		match self {
+			Output::Expr(e) => e.eval(data),
+			Output::Raw(e) => e.to_owned(),
+		}
+	}
 }
 
 #[derive(Debug)]
-enum Condition<'a> {
-	If(IfCondition<'a>),
+enum Condition {
+	If(IfCondition),
 	Else
 }
 
 #[derive(Debug)]
-struct IfCondition<'a> {
-    lhs: Statement<'a>,
+struct IfCondition {
+    lhs: Statement,
     comparison: Comparison,
-    rhs: Statement<'a>,
+    rhs: Statement,
 }
 
 #[derive(Debug)]
-enum Statement<'a> {
-    VarType(VarType<'a>),
-    Ident(Ident<'a>),
+pub enum Statement {
+    Ident(Ident),
+	Raw(Raw),
 }
 
 #[derive(Debug)]
@@ -183,4 +240,22 @@ enum Comparison {
     Gt,
     Lte,
     Gte,
+}
+
+#[derive(Debug)]
+pub struct ExprChain {
+	pub chain: Vec<Expr>,
+}
+
+impl<'a> ExprChain {
+	pub fn eval(&self, data: &HashMap<&'a str, ExprChain>) -> Raw {
+		for expr in &self.chain {
+			match expr {
+				Expr::Output(e) => return e.eval(data),
+				_ => todo!("Not yet implemented"),
+			}
+		}
+
+		panic!("No output was found in the chain")
+	}
 }

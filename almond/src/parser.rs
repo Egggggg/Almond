@@ -1,9 +1,9 @@
 use logos::{Lexer};
 use std::collections::HashMap;
 use crate::syntax;
-use syntax::{TokenKind, Expr};
+use syntax::{TokenKind, Expr, ExprChain};
 
-pub fn parse_var<'a>(lex: &'a mut Lexer<'a, TokenKind>, out: &mut HashMap<&'a str, Vec<Expr<'a>>>) -> &'a mut Lexer<'a, TokenKind>{
+pub fn parse_var<'a>(lex: &'a mut Lexer<'a, TokenKind>, out: &mut HashMap<&'a str, ExprChain>) -> &'a mut Lexer<'a, TokenKind>{
 	let ident = lex.slice();
 	let next = lex.next().unwrap();
 
@@ -13,26 +13,27 @@ pub fn parse_var<'a>(lex: &'a mut Lexer<'a, TokenKind>, out: &mut HashMap<&'a st
 	};
 
 	let next = lex.next().unwrap();
+	let slice = lex.slice();
 
 	let expr = match next {
-		TokenKind::Int(e) => syntax::VarType::Int(e),
-		TokenKind::String => syntax::VarType::String(lex.slice()),
-		TokenKind::Float(e) => syntax::VarType::Float(e),
-		TokenKind::True => syntax::VarType::Bool(true),
-		TokenKind::False => syntax::VarType::Bool(false),
-		_ => panic!("Expected statement, got {}", lex.slice())
+		TokenKind::Int(e) => syntax::Raw::Int(e),
+		TokenKind::String => syntax::Raw::String(slice[1..slice.len()-1].to_owned()),
+		TokenKind::Float(e) => syntax::Raw::Float(e),
+		TokenKind::True => syntax::Raw::Bool(true),
+		TokenKind::False => syntax::Raw::Bool(false),
+		_ => panic!("Expected statement, got {}", slice)
 	};
 
 	match lex.next().unwrap() {
-		TokenKind::End => out.insert(ident, vec![Expr::assign_literal(ident, expr)]),
+		TokenKind::End => out.insert(ident, ExprChain { chain: vec![Expr::output_literal(ident.to_owned(), expr)] }),
 		_ => panic!("Expected ';', got {}", lex.slice())
 	};
 
 	return lex;
 }
 
-pub fn parse<'a>(mut lex: &'a mut Lexer<'a, TokenKind>) -> HashMap<&'a str, Vec<Expr<'a>>> {
-	let mut out: HashMap<&str, Vec<Expr>> = HashMap::new();
+pub fn parse<'a>(mut lex: &'a mut Lexer<'a, TokenKind>) -> HashMap<&'a str, ExprChain> {
+	let mut out: HashMap<&str, ExprChain> = HashMap::new();
 
 	loop {
 		let next = lex.next();

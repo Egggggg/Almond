@@ -6,8 +6,12 @@ use syntax::TokenKind;
 use parser::parse;
 
 fn main() {
-    let mut lex = TokenKind::lexer("nice = 4; hell = 69;");
+    let mut lex = TokenKind::lexer(r#"nice = "true"; hell = false;"#);
 	let out = parse(&mut lex);
 
-	println!("{:#?}", out);
+	let nice = out.get("nice").unwrap().eval(&out);
+	let hell = out.get("hell").unwrap().eval(&out);
+
+	println!("nice: {}, hell: {}", nice, hell);
+	println!("nice + hell: {}", nice + hell);
 }
