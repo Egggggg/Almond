@@ -91,62 +91,92 @@ pub enum TokenKind {
     False,
 }
 
-type Ident = String;
+type Ident<'a> = &'a str;
 
-enum VarType {
-    String(String),
+#[derive(Debug)]
+pub enum VarType<'a> {
+    String(&'a str),
     Int(i64),
     Float(f64),
     Bool(bool),
 }
 
-pub enum Expr {
-    Add(VarType, VarType),
-    Sub(VarType, VarType),
-    Mul(VarType, VarType),
-    Div(VarType, VarType),
-    Mod(VarType, VarType),
-    Exp(Statement, VarType),
-    Conditional(Condition, VarType, VarType),
-	Ref(Ref),
-	TRef(TRef),
-	Tmp(Tmp),
+#[derive(Debug)]
+pub enum Expr<'a> {
+    Add(Statement<'a>, Statement<'a>),
+    Sub(Statement<'a>, Statement<'a>),
+    Mul(Statement<'a>, Statement<'a>),
+    Div(Statement<'a>, Statement<'a>),
+    Mod(Statement<'a>, Statement<'a>),
+    Exp(Statement<'a>, Statement<'a>),
+    Conditional(Condition<'a>, VarType<'a>),
+	Assign(Assign<'a>),
+	Ref(Ref<'a>),
+	IRef(IRef<'a>),
+	IAssign(Intmdt<'a>),
 }
 
-struct Ref {
-	pub to: Ident,
+impl<'a> Expr<'a> {
+	pub fn assign_literal(ident: Ident<'a>, to: VarType<'a>) -> Expr<'a> {
+		let statement = Statement::VarType(to);
+		let assignment = Assignment::Statement(statement);
+		let assign = Assign {
+			lhs: ident,
+			rhs: assignment,
+		};
+
+		return Expr::Assign(assign);
+	}
 }
 
-struct TRef {
-	pub to: Ident,
+#[derive(Debug)]
+struct Ref<'a> {
+	pub to: Ident<'a>,
 }
 
-pub struct Tmp {
-	pub name: Ident,
-	pub expr: Box<Expr>,
+#[derive(Debug)]
+struct IRef<'a> {
+	pub to: Ident<'a>,
 }
 
-enum Assignment {
-    Expr,
-    Statement,
+#[derive(Debug)]
+pub struct Intmdt<'a> {
+	pub name: Ident<'a>,
+	pub expr: Box<Expr<'a>>,
 }
 
-struct Assign {
-    lhs: Ident,
-    rhs: Assignment,
+#[derive(Debug)]
+enum Assignment<'a> {
+    Expr(Box<Expr<'a>>),
+    Statement(Statement<'a>),
 }
 
-struct Condition {
-    lhs: Statement,
+#[derive(Debug)]
+struct Assign<'a> {
+    lhs: Ident<'a>,
+    rhs: Assignment<'a>,
+}
+
+#[derive(Debug)]
+enum Condition<'a> {
+	If(IfCondition<'a>),
+	Else
+}
+
+#[derive(Debug)]
+struct IfCondition<'a> {
+    lhs: Statement<'a>,
     comparison: Comparison,
-    rhs: Statement,
+    rhs: Statement<'a>,
 }
 
-enum Statement {
-    VarType(VarType),
-    Ident(Ident),
+#[derive(Debug)]
+enum Statement<'a> {
+    VarType(VarType<'a>),
+    Ident(Ident<'a>),
 }
 
+#[derive(Debug)]
 enum Comparison {
     Equals,
     Lt,
