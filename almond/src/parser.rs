@@ -1,39 +1,77 @@
 use logos::{Lexer};
-use std::collections::HashMap;
-use crate::syntax;
-use syntax::{TokenKind, Expr, ExprChain};
+use crate::syntax::{self, Store};
+use syntax::{TokenKind, Expr, ExprChain, BinaryExpr, AddExpr};
 
-pub fn parse_var<'a>(lex: &'a mut Lexer<'a, TokenKind>, out: &mut HashMap<&'a str, ExprChain>) -> &'a mut Lexer<'a, TokenKind>{
-	let ident = lex.slice();
+enum VarState {
+	Start,
+	Assign,
+	Add(usize),
+	Sub(usize),
+	Mul(usize),
+	Div(usize),
+}
+
+pub fn parse_var<'a>(lex: &'a mut Lexer<'a, TokenKind>, out: &mut Store) -> &'a mut Lexer<'a, TokenKind>{
+	let ident = lex.slice().to_owned();
 	let next = lex.next().unwrap();
+	let mut out_vec: Vec<Expr> = Vec::new();
+	let mut state = VarState::Start;
 
 	match next {
 		TokenKind::Assign => {},
 		_ => panic!("Expected '=', got {}", lex.slice())
 	};
 
-	let next = lex.next().unwrap();
-	let slice = lex.slice();
+	state = VarState::Assign;
 
-	let expr = match next {
-		TokenKind::Int(e) => syntax::Raw::Int(e),
-		TokenKind::String => syntax::Raw::String(slice[1..slice.len()-1].to_owned()),
-		TokenKind::Float(e) => syntax::Raw::Float(e),
-		TokenKind::True => syntax::Raw::Bool(true),
-		TokenKind::False => syntax::Raw::Bool(false),
-		_ => panic!("Expected statement, got {}", slice)
-	};
+	loop {
+		let next = lex.next().unwrap();
+		let slice = lex.slice();
 
-	match lex.next().unwrap() {
-		TokenKind::End => out.insert(ident, ExprChain { chain: vec![Expr::output_literal(ident.to_owned(), expr)] }),
-		_ => panic!("Expected ';', got {}", lex.slice())
-	};
+		let expr: syntax::Statement = match next {
+			TokenKind::Int(e) => syntax::Raw::Int(e).into(),
+			TokenKind::String => syntax::Raw::String(slice[1..slice.len()-1].to_owned()).into(),
+			TokenKind::Float(e) => syntax::Raw::Float(e).into(),
+			TokenKind::True => syntax::Raw::Bool(true).into(),
+			TokenKind::False => syntax::Raw::Bool(false).into(),
+			TokenKind::Ident => syntax::Ident::from(lex.slice()).into(),
+			_ => panic!("Expected statement, got {}", slice)
+		};
 
-	return lex;
+		match lex.next().unwrap() {
+			TokenKind::End => {
+				match state {
+					VarState::Assign => {
+						out_vec.push(Expr::output(expr));
+						out.insert(ident, ExprChain::new(out_vec));
+					},
+					VarState::Add(e) => {
+						let add_expr = &out_vec[e];
+
+						match add_expr {
+							syntax::Expr::Add(mut s) => {
+								s.operand(expr)
+							},
+							_ => panic!("Unsupported operation '{}'", lex.slice()),
+						}
+					},
+					_ => panic!("Invalid state"),
+				}
+
+				return lex;
+			},
+			TokenKind::Add => {
+				out_vec.push(Expr::IAssign("z".into(), Box::new(Expr::Add(AddExpr::new(expr, None)))));
+				let index = out_vec.len() - 1;
+				state = VarState::Add(index);
+			},
+			_ => panic!("Expected one of (';', '+'), got {}", lex.slice())
+		};
+	}
 }
 
-pub fn parse<'a>(mut lex: &'a mut Lexer<'a, TokenKind>) -> HashMap<&'a str, ExprChain> {
-	let mut out: HashMap<&str, ExprChain> = HashMap::new();
+pub fn parse<'a>(mut lex: &'a mut Lexer<'a, TokenKind>) -> Store {
+	let mut out = Store::new();
 
 	loop {
 		let next = lex.next();
