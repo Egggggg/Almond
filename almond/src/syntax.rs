@@ -212,21 +212,32 @@ impl<'a> Expr {
 		return Expr::Output(output)
 	}
 
-	pub fn operand(&self, operand: Statement) {
-		match self {
-			Expr::Add(e) => e.operand(operand),
-			_ => todo!("Operand not yet implemented"),
-		}
-	}
+	pub fn operand(&mut self, operand: Statement) {
+    let mut expr = match self {
+      Expr::Add(s) => s.clone(),
+      Expr::IAssign(_, s) => {
+        let expr = &*s;        
+        s.operand(operand);
 
+        return
+      }
+      _ => todo!("Support more binary expressions"),
+    };
+
+    expr.operand(operand);
+    println!("{:#?}", expr)
+  }
+  
 	pub fn eval(&self, data: &Store, history: Vec<String>) -> Raw {
 		match self {
 			Expr::Output(e) => e.eval(data, history),
 			Expr::Ref(e) => data.get(e, Some(history)),
+      Expr::Add(e) => e.eval(data, history),
 			_ => Raw::Int(-1),
 		}
 	}
 }
+
 
 impl From<String> for Expr {
 	fn from(other: String) -> Expr {
@@ -238,7 +249,7 @@ pub trait BinaryExpr {
 	fn operand(&mut self, operand: Statement);
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AddExpr {
 	lhs: Statement,
 	rhs: Option<Statement>,
@@ -248,10 +259,19 @@ impl AddExpr {
 	pub fn new(lhs: Statement, rhs: Option<Statement>) -> AddExpr {
 		AddExpr { lhs, rhs }
 	}
+
+  pub fn eval(&self, data: &Store, history: Vec<String>) -> Raw {
+    if let Some(e) = self.rhs {
+      self.lhs.eval() + e.eval()
+    } else {
+      Raw::None
+    }
+  }
 }
 
 impl BinaryExpr for AddExpr {
 	fn operand(&mut self, operand: Statement) {
+    println!("{:#?}", operand);
 		self.rhs = Some(operand);
 	}
 }
@@ -259,13 +279,15 @@ impl BinaryExpr for AddExpr {
 #[derive(Debug)]
 pub struct Store {
 	contents: HashMap<String, ExprChain>,
+  intermediate: HashMap<String, ExprChain>,
 }
 
 impl Store {
 	pub fn new() -> Store {
 		let contents: HashMap<String, ExprChain> = HashMap::new();
-
-		Store { contents }
+    let intermediate: HashMap<String, ExprChain> = HashMap::new();
+    
+		Store { contents, intermediate }
 	}
 
 	pub fn get<T>(&self, ident: T, history: Option<Vec<String>>) -> Raw 
@@ -290,6 +312,10 @@ impl Store {
 	pub fn insert(&mut self, key: String, chain: ExprChain) -> Option<ExprChain> {
 		self.contents.insert(key, chain)
 	}
+
+  pub fn int_insert(&mut self, key: String, chain: ExprChain) -> Option<ExprChain> {
+    self.intermediate.insert(key, chain) 
+  }
 }
 
 #[derive(Debug)]
@@ -329,7 +355,7 @@ struct IfCondition {
     rhs: Statement,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Statement {
     Ident(Ident),
 	Raw(Raw),

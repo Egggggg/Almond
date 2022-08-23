@@ -1,3 +1,4 @@
+
 use logos::{Lexer};
 use crate::syntax::{self, Store};
 use syntax::{TokenKind, Expr, ExprChain, BinaryExpr, AddExpr};
@@ -35,7 +36,7 @@ pub fn parse_var<'a>(lex: &'a mut Lexer<'a, TokenKind>, out: &mut Store) -> &'a 
 			TokenKind::True => syntax::Raw::Bool(true).into(),
 			TokenKind::False => syntax::Raw::Bool(false).into(),
 			TokenKind::Ident => syntax::Ident::from(lex.slice()).into(),
-			_ => panic!("Expected statement, got {}", slice)
+			_ => panic!("Expected statement, found {}", slice)
 		};
 
 		match lex.next().unwrap() {
@@ -46,15 +47,11 @@ pub fn parse_var<'a>(lex: &'a mut Lexer<'a, TokenKind>, out: &mut Store) -> &'a 
 						out.insert(ident, ExprChain::new(out_vec));
 					},
 					VarState::Add(e) => {
-						let add_expr = &out_vec[e];
-
-						match add_expr {
-							syntax::Expr::Add(mut s) => {
-								s.operand(expr)
-							},
-							_ => panic!("Unsupported operation '{}'", lex.slice()),
-						}
-					},
+            println!("{:#?}", out_vec);
+					  if let Some(s) = out_vec.first_mut() {
+              s.operand(expr)
+            }
+          },
 					_ => panic!("Invalid state"),
 				}
 
@@ -65,7 +62,7 @@ pub fn parse_var<'a>(lex: &'a mut Lexer<'a, TokenKind>, out: &mut Store) -> &'a 
 				let index = out_vec.len() - 1;
 				state = VarState::Add(index);
 			},
-			_ => panic!("Expected one of (';', '+'), got {}", lex.slice())
+			_ => panic!("Expected one of (';', '+'), found {}", lex.slice())
 		};
 	}
 }
