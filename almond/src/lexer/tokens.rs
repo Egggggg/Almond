@@ -254,10 +254,10 @@ macro_rules! T {
 		TokenKind::String
 	};
 	[int] => {
-		TokenKind::Int
+		TokenKind::Int(_)
 	};
 	[float] => {
-		TokenKind::Float
+		TokenKind::Float(_)
 	};
 	[true] => {
 		TokenKind::True

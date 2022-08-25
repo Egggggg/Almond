@@ -1,11 +1,21 @@
 use logos::Lexer;
 
-use crate::lexer::tokens::TokenKind;
-use super::ast::{Expr, Store};
+use crate::{lexer::tokens::TokenKind, interpreter::interpret::Store, T};
 
-pub(crate) fn parse_var<'a>(lex: &'a mut Lexer<'a, TokenKind>, out: &mut Store) -> &'a mut Lexer<'a, TokenKind> {
-	let ident = lex.slice().to_owned();
-	let next
+use super::{Parser, ast::{Expr, Literal}};
+
+impl Parser {
+	pub fn parse_expression(&mut self) -> Expr {
+		match self.peek() {
+			lit @ T![int] | lit @ T![float] | lit @ T![string] => {
+				match lit {
+					TokenKind::Int(e) => Literal::Int(e),
+					TokenKind::String => Literal::String(self.)
+				}
+			}
+			_ => todo!(),
+		}
+	}
 }
 
 /*

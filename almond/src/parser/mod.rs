@@ -4,7 +4,7 @@ use std::iter::Peekable;
 use crate::lexer::tokens::{TokenKind, T};
 
 pub(crate) mod ast;
-pub(crate) mod parse;
+pub(crate) mod expressions;
 
 pub struct Parser<'a> {
 	lexer: Peekable<logos::Lexer<'a, TokenKind>>
@@ -17,6 +17,14 @@ impl<'a> Parser<'a> {
 
 	pub(crate) fn peek(&mut self) -> &TokenKind {
 		self.lexer.peek().unwrap_or(&T![EOF])
+	}
+
+	pub(crate) fn at(&mut self, kind: &TokenKind) -> bool {
+		self.peek() == kind
+	}
+
+	pub(crate) fn next(&mut self) -> Option<TokenKind> {
+		self.lexer.next()
 	}
 
 	pub(crate) fn consume(&mut self, expected: TokenKind) {
@@ -33,8 +41,4 @@ impl<'a> Parser<'a> {
 			token
 		)
 	}
-}
-
-impl<'a> Iterator for Parser<'a> {
-
 }

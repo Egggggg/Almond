@@ -1,4 +1,4 @@
-use crate::lexer::tokens::TokenKind;
+use crate::{lexer::tokens::TokenKind, interpreter::interpret::Store};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Literal {
@@ -18,4 +18,13 @@ pub(crate) enum Expr {
 	PrefixOp {op: TokenKind, expr: Box<Expr> },
 	InfixOp { op: TokenKind, lhs: Box<Expr>, rhs: Box<Expr> },
     Conditional { condition: Box<Expr>, block: Box<Expr>, else_block: Box<Expr> },
+}
+
+impl Expr {
+	pub(crate) fn eval(&self, store: &Store, history: Vec<String>) -> Literal {
+		match self {
+			Expr::Literal(e) => *e,
+			_ => todo!(),
+		}
+	}
 }

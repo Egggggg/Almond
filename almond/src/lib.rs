@@ -1,3 +1,3 @@
 mod lexer;
-mod parser;
+pub mod parser;
 mod interpreter;

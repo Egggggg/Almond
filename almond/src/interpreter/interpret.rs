@@ -28,7 +28,7 @@ impl Store {
 		history.push(ident);
 		
 		match found {
-			Some(e) => e.eval(&self, history),
+			Some(e) => e.eval(self, history),
 			None => Literal::None,
 		}
 	}

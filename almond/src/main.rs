@@ -7,7 +7,11 @@ use parser::parse;
 
 fn main() {
 	let input = r#"nice = 23; cool = 46; epic = nice + cool;"#;
-    let mut lex = TokenKind::lexer(input);
+    let mut parser = parser::Parser(input);
+	
+	println!("{:#?}", parser)
+
+	/*
 	let out = parse(&mut lex);
 
 	let nice = out.get("nice", None);
@@ -17,4 +21,5 @@ fn main() {
 	println!("input: {}", input);
 	println!("nice: {}\ncool: {}\nepic: {}", nice, cool, epic);
 	println!("nice + cool: {}", nice + cool);
+	*/
 }
