@@ -1,2 +1,3 @@
-mod syntax;
+mod lexer;
 mod parser;
+mod interpreter;

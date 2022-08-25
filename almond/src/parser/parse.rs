@@ -1,17 +1,14 @@
+use logos::Lexer;
 
-use logos::{Lexer};
-use crate::syntax::{self, Store};
-use syntax::{TokenKind, Expr, ExprChain, BinaryExpr, AddExpr};
+use crate::lexer::tokens::TokenKind;
+use super::ast::{Expr, Store};
 
-enum VarState {
-	Start,
-	Assign,
-	Add(usize),
-	Sub(usize),
-	Mul(usize),
-	Div(usize),
+pub(crate) fn parse_var<'a>(lex: &'a mut Lexer<'a, TokenKind>, out: &mut Store) -> &'a mut Lexer<'a, TokenKind> {
+	let ident = lex.slice().to_owned();
+	let next
 }
 
+/*
 pub fn parse_var<'a>(lex: &'a mut Lexer<'a, TokenKind>, out: &mut Store) -> &'a mut Lexer<'a, TokenKind>{
 	let ident = lex.slice().to_owned();
 	let next = lex.next().unwrap();
@@ -66,6 +63,7 @@ pub fn parse_var<'a>(lex: &'a mut Lexer<'a, TokenKind>, out: &mut Store) -> &'a 
 		};
 	}
 }
+*/
 
 pub fn parse<'a>(mut lex: &'a mut Lexer<'a, TokenKind>) -> Store {
 	let mut out = Store::new();
