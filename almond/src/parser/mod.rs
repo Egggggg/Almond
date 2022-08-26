@@ -1,34 +1,40 @@
 use logos::Logos;
-use std::iter::Peekable;
 
-use crate::lexer::tokens::{TokenKind, T};
+use crate::lexer::tokens::TokenKind;
 
 pub(crate) mod ast;
 pub(crate) mod expressions;
 
+#[derive(Debug)]
 pub struct Parser<'a> {
-	lexer: Peekable<logos::Lexer<'a, TokenKind>>
+	lexer: logos::Lexer<'a, TokenKind>,
+	current: Option<TokenKind>,
 }
 
 impl<'a> Parser<'a> {
 	pub fn new(input: &'a str) -> Parser<'a> {
-		Parser { lexer: TokenKind::lexer(input).peekable() }
+		let lexer = TokenKind::lexer(input);
+		let current = lexer.next();
+
+		Parser { lexer, current }
 	}
 
-	pub(crate) fn peek(&mut self) -> &TokenKind {
-		self.lexer.peek().unwrap_or(&T![EOF])
-	}
-
-	pub(crate) fn at(&mut self, kind: &TokenKind) -> bool {
-		self.peek() == kind
+	pub(crate) fn current(&self) -> Option<TokenKind> {
+		self.current
 	}
 
 	pub(crate) fn next(&mut self) -> Option<TokenKind> {
-		self.lexer.next()
+		self.current = self.lexer.next();
+
+		self.current()
+	}
+
+	pub(crate) fn slice(&self) -> &'a str {
+		self.lexer.slice()
 	}
 
 	pub(crate) fn consume(&mut self, expected: TokenKind) {
-		let token = self.next().expect(&format!(
+		let token = self.current().expect(&format!(
 			"Expected to consume `{}`, but there was no next token",
 			expected
 		));

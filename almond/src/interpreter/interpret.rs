@@ -37,3 +37,12 @@ impl Store {
 		self.contents.insert(key, expr)
 	}
 }
+
+impl Expr {
+	pub(crate) fn eval(&self, store: &Store, history: Vec<String>) -> Literal {
+		match self {
+			Expr::Literal(e) => *e,
+			_ => todo!(),
+		}
+	}
+}

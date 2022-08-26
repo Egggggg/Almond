@@ -19,12 +19,3 @@ pub(crate) enum Expr {
 	InfixOp { op: TokenKind, lhs: Box<Expr>, rhs: Box<Expr> },
     Conditional { condition: Box<Expr>, block: Box<Expr>, else_block: Box<Expr> },
 }
-
-impl Expr {
-	pub(crate) fn eval(&self, store: &Store, history: Vec<String>) -> Literal {
-		match self {
-			Expr::Literal(e) => *e,
-			_ => todo!(),
-		}
-	}
-}

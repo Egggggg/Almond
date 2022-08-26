@@ -4,15 +4,20 @@ use crate::{lexer::tokens::TokenKind, interpreter::interpret::Store, T};
 
 use super::{Parser, ast::{Expr, Literal}};
 
-impl Parser {
+impl<'a> Parser<'a> {
 	pub fn parse_expression(&mut self) -> Expr {
-		match self.peek() {
-			lit @ T![int] | lit @ T![float] | lit @ T![string] => {
-				match lit {
-					TokenKind::Int(e) => Literal::Int(e),
-					TokenKind::String => Literal::String(self.)
-				}
-			}
+		match self.current().unwrap_or(TokenKind::EOF) {
+			TokenKind::Ident => Expr::Ref(self.slice().to_owned()),
+			TokenKind::String => {
+				let slice = self.slice();
+				let value = &slice[1..slice.len()-2];
+
+				Expr::Literal(Literal::String(value.to_owned()))
+			},
+			TokenKind::Int(e) => Expr::Literal(Literal::Int(e)),
+			TokenKind::Float(e) => Literal::Float(e),
+			TokenKind::True => Literal::Bool(true),
+			TokenKind::False => Literal::Bool(false),
 			_ => todo!(),
 		}
 	}

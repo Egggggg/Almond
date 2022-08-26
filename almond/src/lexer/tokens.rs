@@ -25,7 +25,7 @@ pub enum TokenKind {
     #[token(".")]
     Access,
     #[regex(r"[ \t\n\f]+", logos::skip)]
-    Skipped,
+    Whitespace,
     #[regex(r"//[^\n]*")]
     Comment,
     #[error]
@@ -115,7 +115,7 @@ impl From<&TokenKind> for String {
 			TokenKind::As => "As",
 			TokenKind::Comma => "Comma",
 			TokenKind::Access => "Access",
-			TokenKind::Skipped => "Skipped",
+			TokenKind::Whitespace => "",
 			TokenKind::Comment => "Comment",
 			TokenKind::Error => "Error",
 			TokenKind::EOF => "EOF",
@@ -151,123 +151,3 @@ impl From<&TokenKind> for String {
 		out.to_owned()
 	}
 }
-
-#[macro_export]
-macro_rules! T {
-	[ident] => {
-		TokenKind::Ident
-	};
-	[=] => {
-		TokenKind::Assign
-	};
-	[;] => {
-		TokenKind::End
-	};
-	[scope] => {
-		TokenKind::Scope
-	};
-	[iscope] => {
-		TokenKind::IScope
-	};
-	[input] => {
-		TokenKind::Input
-	};
-	[output] => {
-		TokenKind::Output
-	};
-	[as] => {
-		TokenKind::As
-	};
-	[,] => {
-		TokenKind::Comma
-	};
-	[.] => {
-		TokenKind::Access
-	};
-	["{"] => {
-		TokenKind::Assign
-	};
-	["}"] => {
-		TokenKind::Assign
-	};
-	["["] => {
-		TokenKind::Assign
-	};
-	["]"] => {
-		TokenKind::Assign
-	};
-	["("] => {
-		TokenKind::Assign
-	};
-	[")"] => {
-		TokenKind::Assign
-	};
-	[==] => {
-		TokenKind::Equals
-	};
-	[<] => {
-		TokenKind::Lt
-	};
-	[>] => {
-		TokenKind::Gt
-	};
-	[<=] => {
-		TokenKind::Lte
-	};
-	[>=] => {
-		TokenKind::Gte
-	};
-	[&&] => {
-		TokenKind::And
-	};
-	[||] => {
-		TokenKind::Or
-	};
-	[!] => {
-		TokenKind::Not
-	};
-	[if] => {
-		TokenKind::If
-	};
-	[else] => {
-		TokenKind::Else
-	};
-	[+] => {
-		TokenKind::Add
-	};
-	[-] => {
-		TokenKind::Sub
-	};
-	[*] => {
-		TokenKind::Mul
-	};
-	[/] => {
-		TokenKind::Div
-	};
-	[%] => {
-		TokenKind::Mod
-	};
-	[**] => {
-		TokenKind::Exp
-	};
-	[string] => {
-		TokenKind::String
-	};
-	[int] => {
-		TokenKind::Int(_)
-	};
-	[float] => {
-		TokenKind::Float(_)
-	};
-	[true] => {
-		TokenKind::True
-	};
-	[false] => {
-		TokenKind::False
-	};
-	[EOF] => {
-		TokenKind::EOF
-	};
-}
-
-pub(crate) use T;
