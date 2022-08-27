@@ -1,8 +1,8 @@
 use logos::Logos;
 use std::fmt;
 
-#[derive(Logos, Debug, PartialEq)]
-pub enum TokenKind {
+#[derive(Logos, Clone, Debug, PartialEq)]
+pub(crate) enum TokenKind {
     // ===== general =====
     #[regex(r"[a-zA-Z][\w_]*")]
     Ident,

@@ -1,19 +1,6 @@
-use std::collections::HashMap;
-
-use crate::parser::ast::{Expr, Literal};
-
-#[derive(Debug)]
-pub struct Store {
-	contents: HashMap<String, Expr>,
-}
+use crate::parser::ast::{Expr, Literal, Store};
 
 impl Store {
-	pub fn new() -> Store {
-		let contents: HashMap<String, Expr> = HashMap::new();
-		
-		Store { contents }
-	}
-
 	pub fn get<T>(&self, ident: T, history: Option<Vec<String>>) -> Literal
 	where T: Into<String> {
 		let ident = ident.into();
@@ -32,16 +19,12 @@ impl Store {
 			None => Literal::None,
 		}
 	}
-
-	pub fn insert(&mut self, key: String, expr: Expr) -> Option<Expr> {
-		self.contents.insert(key, expr)
-	}
 }
 
 impl Expr {
 	pub(crate) fn eval(&self, store: &Store, history: Vec<String>) -> Literal {
 		match self {
-			Expr::Literal(e) => *e,
+			Expr::Literal(e) => e.clone(),
 			_ => todo!(),
 		}
 	}

@@ -1,24 +1,54 @@
 use logos::Lexer;
 
-use crate::{lexer::tokens::TokenKind, interpreter::interpret::Store, T};
+use crate::lexer::tokens::TokenKind;
 
-use super::{Parser, ast::{Expr, Literal}};
+use super::{Parser, ast::Expr, ast::Store};
 
 impl<'a> Parser<'a> {
-	pub fn parse_expression(&mut self) -> Expr {
-		match self.current().unwrap_or(TokenKind::EOF) {
+	fn parse_expression(&mut self) -> Expr {
+		match self.next().unwrap_or(TokenKind::EOF) {
 			TokenKind::Ident => Expr::Ref(self.slice().to_owned()),
 			TokenKind::String => {
 				let slice = self.slice();
 				let value = &slice[1..slice.len()-2];
 
-				Expr::Literal(Literal::String(value.to_owned()))
+				Expr::from(value.to_owned())
 			},
-			TokenKind::Int(e) => Expr::Literal(Literal::Int(e)),
-			TokenKind::Float(e) => Literal::Float(e),
-			TokenKind::True => Literal::Bool(true),
-			TokenKind::False => Literal::Bool(false),
+			TokenKind::Int(e) => Expr::from(e),
+			TokenKind::Float(e) => Expr::from(e),
+			TokenKind::True => Expr::from(true),
+			TokenKind::False => Expr::from(false),
 			_ => todo!(),
+		}
+	}
+
+	fn parse_assign(&mut self, ident: &'a str, out: &mut Store) {
+		let next = self.next();
+
+		if !matches!(next, Some(TokenKind::Equals)) {
+			panic!("`=` expected, found {}", self.slice())
+		}
+
+		let value = self.parse_expression();
+
+		out.insert(ident.to_owned(), value);
+	}
+
+	pub(crate) fn parse(&mut self) {
+		let mut out = Store::new();
+	
+		loop {
+			let next = self.next();
+	
+			let next = match next {
+				None => return,
+				Some(e) => e
+			};
+	
+			match next {
+				TokenKind::Ident => self.parse_assign(self.slice(), &mut out),
+				_ => panic!("Unexpected token: {}", self.slice()),
+			}
 		}
 	}
 }
@@ -79,21 +109,3 @@ pub fn parse_var<'a>(lex: &'a mut Lexer<'a, TokenKind>, out: &mut Store) -> &'a 
 	}
 }
 */
-
-pub fn parse<'a>(mut lex: &'a mut Lexer<'a, TokenKind>) -> Store {
-	let mut out = Store::new();
-
-	loop {
-		let next = lex.next();
-
-		let next = match next {
-			None => return out,
-			Some(e) => e
-		};
-
-		match next {
-			TokenKind::Ident => lex = parse_var(lex, &mut out),
-			_ => panic!("Unexpected token: {}", lex.slice()),
-		}
-	}
-}

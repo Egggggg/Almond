@@ -13,14 +13,14 @@ pub struct Parser<'a> {
 
 impl<'a> Parser<'a> {
 	pub fn new(input: &'a str) -> Parser<'a> {
-		let lexer = TokenKind::lexer(input);
+		let mut lexer = TokenKind::lexer(input);
 		let current = lexer.next();
 
 		Parser { lexer, current }
 	}
 
 	pub(crate) fn current(&self) -> Option<TokenKind> {
-		self.current
+		self.current.clone()
 	}
 
 	pub(crate) fn next(&mut self) -> Option<TokenKind> {
