@@ -2,7 +2,7 @@ use logos::Logos;
 use std::fmt;
 
 #[derive(Logos, Clone, Debug, PartialEq)]
-pub(crate) enum TokenKind {
+pub enum TokenKind {
     // ===== general =====
     #[regex(r"[a-zA-Z][\w_]*")]
     Ident,

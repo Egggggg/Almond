@@ -8,12 +8,13 @@ pub enum Literal {
     Int(i64),
     Float(f64),
     Bool(bool),
+	Array(Vec<Literal>),
 	Circular(String),
 	None,
 }
 
 #[derive(Debug)]
-pub(crate) enum Expr {
+pub enum Expr {
 	Literal(Literal),
 	Ref(String),
 	FnCall { fn_name: String, args: Vec<Expr> },
@@ -46,8 +47,14 @@ impl From<bool> for Expr {
 	}
 }
 
+impl From<Vec<Literal>> for Expr {
+	fn from(other: Vec<Literal>) -> Expr {
+		Expr::Literal(Literal::Array(other))
+	}
+}
+
 #[derive(Debug)]
-pub(crate) struct Store {
+pub struct Store {
 	pub contents: HashMap<String, Expr>,
 }
 

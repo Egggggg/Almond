@@ -2,21 +2,35 @@ use logos::Logos;
 
 use crate::lexer::tokens::TokenKind;
 
-pub(crate) mod ast;
-pub(crate) mod expressions;
+use self::ast::Store;
+
+pub mod ast;
+pub mod parsing;
 
 #[derive(Debug)]
 pub struct Parser<'a> {
 	lexer: logos::Lexer<'a, TokenKind>,
 	current: Option<TokenKind>,
+	prev: Option<TokenKind>,
+	prev_slice: Option<&'a str>,
 }
 
 impl<'a> Parser<'a> {
 	pub fn new(input: &'a str) -> Parser<'a> {
-		let mut lexer = TokenKind::lexer(input);
-		let current = lexer.next();
+		let lexer = TokenKind::lexer(input);
+		let current = None;
+		let prev = None;
+		let prev_slice = None;
 
-		Parser { lexer, current }
+		Parser { lexer, current, prev, prev_slice }
+	}
+
+	pub fn parse(&mut self/*, input: HashMap<String, Literal>*/) -> Store {
+		let mut output = Store::new();
+
+		self.parse_input(&mut output);
+
+		output
 	}
 
 	pub(crate) fn current(&self) -> Option<TokenKind> {
@@ -45,6 +59,8 @@ impl<'a> Parser<'a> {
 			"Expected to consume `{}`, but found `{}`",
 			expected,
 			token
-		)
+		);
+
+		self.next();
 	}
 }
