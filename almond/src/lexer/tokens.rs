@@ -49,6 +49,8 @@ pub enum TokenKind {
     // ===== logic =====
     #[token("==")]
     Equals,
+	#[token("!=")]
+	NotEquals,
     #[token("<")]
     Lt,
     #[token(">")]
@@ -126,6 +128,7 @@ impl From<&TokenKind> for String {
 			TokenKind::LParen => "LParen",
 			TokenKind::RParen => "RParen",
 			TokenKind::Equals => "Equals",
+			TokenKind::NotEquals => "NotEquals",
 			TokenKind::Lt => "Lt",
 			TokenKind::Gt => "Gt",
 			TokenKind::Lte => "Lte",
