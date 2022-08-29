@@ -11,18 +11,18 @@ pub mod parsing;
 pub struct Parser<'a> {
 	lexer: logos::Lexer<'a, TokenKind>,
 	current: Option<TokenKind>,
-	prev: Option<TokenKind>,
-	prev_slice: Option<&'a str>,
+	slice: &'a str,
+	next: Option<TokenKind>
 }
 
 impl<'a> Parser<'a> {
 	pub fn new(input: &'a str) -> Parser<'a> {
-		let lexer = TokenKind::lexer(input);
+		let mut lexer = TokenKind::lexer(input);
 		let current = None;
-		let prev = None;
-		let prev_slice = None;
+		let slice = lexer.slice();
+		let next = lexer.next();
 
-		Parser { lexer, current, prev, prev_slice }
+		Parser { lexer, current, slice, next }
 	}
 
 	pub fn parse(&mut self/*, input: HashMap<String, Literal>*/) -> Store {
@@ -33,26 +33,28 @@ impl<'a> Parser<'a> {
 		output
 	}
 
-	pub(crate) fn current(&self) -> Option<TokenKind> {
-		self.current.clone()
+	pub(crate) fn peek(&self) -> Option<TokenKind> {
+		self.next
 	}
 
 	pub(crate) fn next(&mut self) -> Option<TokenKind> {
-		self.current = self.lexer.next();
+		self.current = self.next;
+		self.slice = self.lexer.slice();
+		self.next = self.lexer.next();
 
-		self.current()
+		self.current
 	}
 
 	pub(crate) fn slice(&self) -> &'a str {
-		self.lexer.slice()
+		self.slice
 	}
 
 	pub(crate) fn consume(&mut self, expected: TokenKind) {
-		let token = self.current().expect(&format!(
+		let token = self.next().expect(&format!(
 			"Expected to consume `{}`, but there was no next token",
 			expected
 		));
-		
+
 		assert_eq!(
 			token,
 			expected,
@@ -60,7 +62,5 @@ impl<'a> Parser<'a> {
 			expected,
 			token
 		);
-
-		self.next();
 	}
 }
