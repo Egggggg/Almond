@@ -115,6 +115,7 @@ impl<'a> Parser<'a> {
 
 			match next {
 				Some(TokenKind::Ident) => self.parse_assign(self.slice(), output),
+				Some(TokenKind::Comment) => continue,
 				None => return,
 				_ => panic!("Unexpected token: {}", self.slice()),
 			}
