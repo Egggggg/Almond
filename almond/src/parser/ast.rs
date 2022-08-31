@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::{Range, RangeInclusive}};
 
 use crate::lexer::tokens::TokenKind;
 
@@ -19,6 +19,8 @@ impl PartialEq<Literal> for Literal {
 			(Literal::String(e), Literal::String(s)) => e == s,
 			(Literal::Int(e), Literal::Int(s)) => e == s,
 			(Literal::Float(e), Literal::Float(s)) => e == s,
+			(Literal::Float(e), Literal::Int(s)) => *e == *s as f64,
+			(Literal::Int(e), Literal::Float(s)) => *e as f64 == *s,
 			(Literal::Bool(e), Literal::Bool(s)) => e == s,
 			(Literal::Array(e), Literal::Array(s)) => e == s,
 			(Literal::Circular(_), Literal::Circular(_)) => false,
@@ -37,6 +39,7 @@ pub enum Expr {
 	PrefixOp {op: TokenKind, expr: Box<Expr> },
 	InfixOp { op: TokenKind, lhs: Box<Expr>, rhs: Box<Expr> },
     Conditional { condition: Box<Expr>, block: Box<Expr>, else_block: Box<Expr> },
+	ArrayAccess(usize),
 }
 
 impl From<String> for Expr {
@@ -86,6 +89,7 @@ impl Store {
 		self.contents.insert(key, expr)
 	}
 
+	#[cfg(test)]
 	pub(crate) fn get_ast<T: Into<String>>(&self, key: T) -> Option<&Expr> {
 		let key = key.into();
 		self.contents.get(&key)

@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use logos::Logos;
 
 use crate::lexer::tokens::TokenKind;
@@ -47,6 +49,10 @@ impl<'a> Parser<'a> {
 
 	pub(crate) fn slice(&self) -> &'a str {
 		self.slice
+	}
+
+	pub(crate) fn span(&self) -> Range<usize> {
+		self.lexer.span()
 	}
 
 	pub(crate) fn consume<T: AsRef<TokenKind>>(&mut self, expected: T) {

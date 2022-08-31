@@ -1,4 +1,4 @@
-use logos::Logos;
+use logos::{Logos, Lexer};
 use std::{fmt, ops::{Range, RangeInclusive}};
 
 #[derive(Logos, Clone, Debug, PartialEq)]
@@ -29,6 +29,10 @@ pub enum TokenKind {
     #[error]
     Error,
 	EOF,
+	#[token("..")]
+	Range,
+	#[token("..=")]
+	IRange,
 
     // ===== containers =====
     #[token("{")]
@@ -94,16 +98,6 @@ pub enum TokenKind {
     True,
     #[token("false")]
     False,
-	#[regex(r#"-?\d[\d_]*\.\.-?\d[\d_]*"#, |lex| {
-		let nums: Vec<i64> = lex.slice().split("..").map(|i| i.parse::<i64>().unwrap()).collect();
-		nums[0]..nums[1]
-	})]
-	Range(Range<i64>),
-	#[regex(r#"-?\d[\d_]*\.\.=-?\d[\d_]*"#, |lex| {
-		let nums: Vec<i64> = lex.slice().split("..=").map(|i| i.parse::<i64>().unwrap()).collect();
-		nums[0]..=nums[1]
-	})]
-	IRange(RangeInclusive<i64>),
 }
 
 impl fmt::Display for TokenKind {
@@ -128,6 +122,8 @@ impl From<&TokenKind> for String {
 			TokenKind::Comment => "Comment",
 			TokenKind::Error => "Error",
 			TokenKind::EOF => "EOF",
+			TokenKind::Range => "Range",
+			TokenKind::IRange => "IRange",
 			TokenKind::LCurly => "LCurly",
 			TokenKind::RCurly => "RCurly",
 			TokenKind::LSquare => "LSquare",
@@ -151,8 +147,6 @@ impl From<&TokenKind> for String {
 			TokenKind::Div => "Div",
 			TokenKind::Mod => "Mod",
 			TokenKind::Exp => "Exp",
-			TokenKind::Range(_) => "Range",
-			TokenKind::IRange(_) => "IRange",
 			TokenKind::String => "String",
 			TokenKind::Int(_) => "Int",
 			TokenKind::Float(_) => "Float",
@@ -161,5 +155,11 @@ impl From<&TokenKind> for String {
 		};
 
 		out.to_owned()
+	}
+}
+
+impl AsRef<TokenKind> for TokenKind {
+	fn as_ref(&self) -> &TokenKind {
+		&self
 	}
 }
