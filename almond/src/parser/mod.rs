@@ -64,3 +64,8 @@ impl<'a> Parser<'a> {
 		);
 	}
 }
+
+pub fn eval<'a>(input: &'a str) -> Store {
+	let mut parser = Parser::new(input);
+	parser.parse()
+}
