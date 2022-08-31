@@ -1,8 +1,7 @@
 use crate::parser::ast::{Expr, Literal, Store};
 
 impl Store {
-	pub fn get<T>(&self, ident: T, history: Option<Vec<String>>) -> Literal
-	where T: Into<String> {
+	pub fn get<T: Into<String>>(&self, ident: T, history: Option<Vec<String>>) -> Literal {
 		let ident = ident.into();
 		let mut history = history.unwrap_or_default();
 
