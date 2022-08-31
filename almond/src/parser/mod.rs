@@ -25,7 +25,7 @@ impl<'a> Parser<'a> {
 		Parser { lexer, current, slice, next }
 	}
 
-	pub fn parse(&mut self/*, input: HashMap<String, Literal>*/) -> Store {
+	pub fn parse(&mut self) -> Store {
 		let mut output = Store::new();
 
 		self.parse_input(&mut output);
