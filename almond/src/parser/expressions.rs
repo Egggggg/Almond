@@ -70,6 +70,28 @@ impl<'a> Parser<'a> {
 					expr: Box::new(expr),
 				}
 			},
+			TokenKind::If => {
+				self.consume(TokenKind::If);
+				let condition = Box::new(self.parse_expression(0));
+				self.consume(TokenKind::LCurly);
+				let then_block = Box::new(self.parse_expression(0));
+				self.consume(TokenKind::RCurly);
+
+				// since all variables need a value, all ifs must have an else
+				self.consume(TokenKind::Else);
+
+				match self.peek().unwrap_or(TokenKind::EOF) {
+					TokenKind::LCurly => {
+						self.consume(TokenKind::LCurly);
+					},
+					TokenKind::If => {},
+					kind => panic!("Expected If or LCurly after Else, found {kind}"),
+				}
+
+				let else_block = Box::new(self.parse_expression(0));
+
+				Expr::Conditional { condition, then_block, else_block }
+			}
 			kind => panic!("Unknown start of expression `{}`", kind),
 		};
 
@@ -183,11 +205,11 @@ mod test {
 	#[test]
 	fn atomics() {
 		let store = eval(r#"string = "nice";
-							int = 23;
-							float = 324.2356;
-							boolF = false;
-							boolT = true;
-						"#);
+								int = 23;
+								float = 324.2356;
+								boolF = false;
+								boolT = true;
+							"#);
 
 
 		assert_eq!(
@@ -499,6 +521,16 @@ mod test {
 	}
 
 	#[test]
+	fn array_index() {
+		let store = eval("nice = [1, 2, 3, 4]; cool = nice[3];");
+
+		assert_eq!(
+			store.get_ast("cool"),
+			None
+		)
+	}
+
+	#[test]
 	fn ranges() {
 		let store = eval("nice = 1..5; cool = 1..=5;");
 
@@ -573,5 +605,11 @@ mod test {
 				}
 			)
 		)
+	}
+
+	#[test]
+	fn conditional() {
+		let store = eval("nice = 10; cool = if nice < 5 {
+								10")
 	}
 }
