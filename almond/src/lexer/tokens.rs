@@ -12,8 +12,6 @@ pub enum TokenKind {
     End,
     #[regex(r"\$[a-zA-Z][\w_]*")]
     Scope,
-    #[regex(r"\$#[a-zA-Z][\w_]*")]
-    IScope,
     #[token("input")]
     Input,
 	#[token("output")]
@@ -83,6 +81,10 @@ pub enum TokenKind {
     Mod,
     #[token("**")]
     Exp,
+	#[token("..")]
+	Range,
+	#[token("..=")]
+	IRange,
 
     // ===== literal =====
     #[regex(r#""[^"]*""#)]
@@ -90,7 +92,7 @@ pub enum TokenKind {
     String,
     #[regex(r"-?\d[\d_]*", |lex| lex.slice().parse())]
     Int(i64),
-    #[regex(r"-?(\d[\d_]*)?\.(\d[\d_]*)([eE]-?\d[\d_]*)?", |lex| lex.slice().parse())]
+    #[regex(r"-?(\d[\d_]*)?\.(\d[\d_]*)([eE]?\d[\d_]*)?", |lex| lex.slice().parse())]
     Float(f64),
     #[token("true")]
     True,
@@ -111,7 +113,6 @@ impl From<&TokenKind> for String {
 			TokenKind::Assign => "Assign",
 			TokenKind::End => "End",
 			TokenKind::Scope => "Scope",
-			TokenKind::IScope => "IScope",
 			TokenKind::Input => "Input",
 			TokenKind::Output => "Output",
 			TokenKind::As => "As",
@@ -144,6 +145,8 @@ impl From<&TokenKind> for String {
 			TokenKind::Div => "Div",
 			TokenKind::Mod => "Mod",
 			TokenKind::Exp => "Exp",
+			TokenKind::Range => "Range",
+			TokenKind::IRange => "IRange",
 			TokenKind::String => "String",
 			TokenKind::Int(_) => "Int",
 			TokenKind::Float(_) => "Float",
