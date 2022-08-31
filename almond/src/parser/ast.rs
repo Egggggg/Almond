@@ -20,7 +20,7 @@ impl PartialEq<Literal> for Literal {
 			(Literal::Int(e), Literal::Int(s)) => e == s,
 			(Literal::Float(e), Literal::Float(s)) => e == s,
 			(Literal::Bool(e), Literal::Bool(s)) => e == s,
-			(Literal::Array(_), Literal::Array(_)) => false,
+			(Literal::Array(e), Literal::Array(s)) => e == s,
 			(Literal::Circular(_), Literal::Circular(_)) => false,
 			(Literal::None, Literal::None) => false,
 			_ => false,

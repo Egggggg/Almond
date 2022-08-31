@@ -34,22 +34,24 @@ impl<'a> Parser<'a> {
 	}
 
 	pub(crate) fn peek(&self) -> Option<TokenKind> {
-		self.next
+		self.next.clone()
 	}
 
 	pub(crate) fn next(&mut self) -> Option<TokenKind> {
-		self.current = self.next;
+		self.current = self.next.clone();
 		self.slice = self.lexer.slice();
 		self.next = self.lexer.next();
 
-		self.current
+		self.current.clone()
 	}
 
 	pub(crate) fn slice(&self) -> &'a str {
 		self.slice
 	}
 
-	pub(crate) fn consume(&mut self, expected: TokenKind) {
+	pub(crate) fn consume<T: AsRef<TokenKind>>(&mut self, expected: T) {
+		let expected = expected.as_ref().to_owned();
+
 		let token = self.next().expect(&format!(
 			"Expected to consume `{}`, but there was no next token",
 			expected

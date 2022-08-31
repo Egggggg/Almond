@@ -76,8 +76,7 @@ impl<'a> Parser<'a> {
 		loop {
 			if let Some(peek) = self.peek() {
 				let op = match peek {
-					op @ TokenKind::As
-					| op @ TokenKind::Equals
+					op @ TokenKind::Equals
 					| op @ TokenKind::Lt
 					| op @ TokenKind::Gt
 					| op @ TokenKind::Lte
@@ -105,9 +104,9 @@ impl<'a> Parser<'a> {
 						break;
 					}
 					
-					self.consume(op);
+					self.consume(&op);
 					let rhs = self.parse_expression(right_binding_power);
-					lhs = Expr::InfixOp { op, lhs: Box::new(lhs), rhs: Box::new(rhs) };
+					lhs = Expr::InfixOp { op: op.clone(), lhs: Box::new(lhs), rhs: Box::new(rhs) };
 
 					continue;
 				}
@@ -152,135 +151,23 @@ trait Operator {
 impl Operator for TokenKind {
 	fn infix_binding_power(&self) -> Option<(u8, u8)> {
 		let result = match self {
-			TokenKind::As => (1, 2),
-			TokenKind::Or => (3, 4),
-			TokenKind::And => (5, 6),
+			TokenKind::Or => (1, 2),
+			TokenKind::And => (3, 4),
 			TokenKind::Equals
-			| TokenKind::NotEquals => (7, 8),
+			| TokenKind::NotEquals => (5, 6),
 			TokenKind::Lt
 			| TokenKind::Gt
 			| TokenKind::Lte
-			| TokenKind::Gte => (9, 10),
+			| TokenKind::Gte => (7, 8),
 			TokenKind::Add
-			| TokenKind::Sub => (11, 12),
+			| TokenKind::Sub => (9, 10),
 			TokenKind::Mul
-			| TokenKind::Div => (13, 14),
-			TokenKind::Mod => (15, 16),
-			TokenKind::Exp => (17, 18),
+			| TokenKind::Div => (11, 12),
+			TokenKind::Mod => (13, 14),
+			TokenKind::Exp => (15, 16),
 			_ => return None,
 		};
 
 		Some(result)
-	}
-}
-
-#[cfg(test)]
-mod test {
-    use crate::{parser::{eval, ast::{Expr, Literal}}, lexer::tokens::TokenKind};
-
-	#[test]
-	fn literal() {
-		let store = eval("nice = 23;");
-
-		assert_eq!(
-			store.get_ast("nice"),
-			Some(
-				&Expr::Literal(
-					Literal::Int(23)
-				)
-			)
-		)
-	}
-
-	#[test]
-	fn expr() {
-		let store = eval("nice = 23 + 7;");
-
-		assert_eq!(
-			store.get_ast("nice"),
-			Some(
-				&Expr::InfixOp { 
-					op: TokenKind::Add,
-					lhs: Box::new(
-						Expr::Literal(
-							Literal::Int(23)
-						)
-					),
-					rhs: Box::new(
-						Expr::Literal(
-							Literal::Int(7)
-						)
-					)
-				} 
-			)
-		)
-	}
-
-	#[test]
-	fn chained_expr() {
-		let store = eval("nice = 23 + 7 * 3;");
-
-		assert_eq!(
-			store.get_ast("nice"),
-			Some(
-				&Expr::InfixOp {
-					op: TokenKind::Add,
-					lhs: Box::new(
-						Expr::Literal(
-							Literal::Int(23)
-						)
-					),
-					rhs: Box::new(
-						Expr::InfixOp {
-							op: TokenKind::Mul,
-							lhs: Box::new(
-								Expr::Literal(
-									Literal::Int(7)
-								)
-							),
-							rhs: Box::new(
-								Expr::Literal(
-									Literal::Int(3)
-								)
-							)
-						}
-					)
-				}
-			)
-		)
-	}
-
-	#[test]
-	fn grouped_expr() {
-		let store = eval("nice = (23 + 7) * 3;");
-
-		assert_eq!(
-			store.get_ast("nice"),
-			Some(
-				&Expr::InfixOp {
-					op: TokenKind::Mul,
-					lhs: Box::new(
-						Expr::InfixOp {
-							op: TokenKind::Add,
-							lhs: Box::new(
-								Expr::Literal(
-									Literal::Int(23)
-								)
-							),
-							rhs: Box::new(
-								Expr::Literal(
-									Literal::Int(7)
-								)
-							)
-						}
-					),
-					rhs: Box::new(
-						Expr::Literal(
-							Literal::Int(3)
-						)
-					)
-				}
-			)
-		)
 	}
 }

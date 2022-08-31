@@ -1,7 +1,7 @@
 use logos::Logos;
-use std::fmt;
+use std::{fmt, ops::{Range, RangeInclusive}};
 
-#[derive(Logos, Clone, Copy, Debug, PartialEq)]
+#[derive(Logos, Clone, Debug, PartialEq)]
 pub enum TokenKind {
     // ===== general =====
     #[regex(r"[a-zA-Z][\w_]*")]
@@ -81,10 +81,6 @@ pub enum TokenKind {
     Mod,
     #[token("**")]
     Exp,
-	#[token("..")]
-	Range,
-	#[token("..=")]
-	IRange,
 
     // ===== literal =====
     #[regex(r#""[^"]*""#)]
@@ -98,6 +94,16 @@ pub enum TokenKind {
     True,
     #[token("false")]
     False,
+	#[regex(r#"-?\d[\d_]*\.\.-?\d[\d_]*"#, |lex| {
+		let nums: Vec<i64> = lex.slice().split("..").map(|i| i.parse::<i64>().unwrap()).collect();
+		nums[0]..nums[1]
+	})]
+	Range(Range<i64>),
+	#[regex(r#"-?\d[\d_]*\.\.=-?\d[\d_]*"#, |lex| {
+		let nums: Vec<i64> = lex.slice().split("..=").map(|i| i.parse::<i64>().unwrap()).collect();
+		nums[0]..=nums[1]
+	})]
+	IRange(RangeInclusive<i64>),
 }
 
 impl fmt::Display for TokenKind {
@@ -145,8 +151,8 @@ impl From<&TokenKind> for String {
 			TokenKind::Div => "Div",
 			TokenKind::Mod => "Mod",
 			TokenKind::Exp => "Exp",
-			TokenKind::Range => "Range",
-			TokenKind::IRange => "IRange",
+			TokenKind::Range(_) => "Range",
+			TokenKind::IRange(_) => "IRange",
 			TokenKind::String => "String",
 			TokenKind::Int(_) => "Int",
 			TokenKind::Float(_) => "Float",
