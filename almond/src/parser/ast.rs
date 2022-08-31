@@ -28,6 +28,7 @@ impl PartialEq<Literal> for Literal {
 	}
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
 	Literal(Literal),
 	Ref(String),
