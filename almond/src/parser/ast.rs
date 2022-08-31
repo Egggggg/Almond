@@ -81,7 +81,8 @@ impl Store {
 		Store { contents }
 	}
 
-	pub fn insert(&mut self, key: String, expr: Expr) -> Option<Expr> {
+	pub fn insert<T: Into<String>>(&mut self, key: T, expr: Expr) -> Option<Expr> {
+		let key = key.into();
 		self.contents.insert(key, expr)
 	}
 }
