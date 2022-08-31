@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::lexer::tokens::TokenKind;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Literal {
     String(String),
     Int(i64),
@@ -13,7 +13,21 @@ pub enum Literal {
 	None,
 }
 
-#[derive(Debug)]
+impl PartialEq<Literal> for Literal {
+	fn eq(&self, other: &Literal) -> bool {
+		match (self, other) {
+			(Literal::String(e), Literal::String(s)) => e == s,
+			(Literal::Int(e), Literal::Int(s)) => e == s,
+			(Literal::Float(e), Literal::Float(s)) => e == s,
+			(Literal::Bool(e), Literal::Bool(s)) => e == s,
+			(Literal::Array(_), Literal::Array(_)) => false,
+			(Literal::Circular(_), Literal::Circular(_)) => false,
+			(Literal::None, Literal::None) => false,
+			_ => false,
+		}
+	}
+}
+
 pub enum Expr {
 	Literal(Literal),
 	Ref(String),
