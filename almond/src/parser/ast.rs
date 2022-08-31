@@ -8,7 +8,7 @@ pub enum Literal {
     Int(i64),
     Float(f64),
     Bool(bool),
-	Array(Vec<Literal>),
+	Array(Vec<Expr>),
 	Circular(String),
 	None,
 }
@@ -63,8 +63,8 @@ impl From<bool> for Expr {
 	}
 }
 
-impl From<Vec<Literal>> for Expr {
-	fn from(other: Vec<Literal>) -> Expr {
+impl From<Vec<Expr>> for Expr {
+	fn from(other: Vec<Expr>) -> Expr {
 		Expr::Literal(Literal::Array(other))
 	}
 }
