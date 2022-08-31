@@ -85,4 +85,9 @@ impl Store {
 		let key = key.into();
 		self.contents.insert(key, expr)
 	}
+
+	pub(crate) fn get_ast<T: Into<String>>(&self, key: T) -> Option<&Expr> {
+		let key = key.into();
+		self.contents.get(&key)
+	}
 }
