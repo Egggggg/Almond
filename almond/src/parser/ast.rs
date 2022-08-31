@@ -32,8 +32,7 @@ impl PartialEq<Literal> for Literal {
 pub enum Expr {
 	Literal(Literal),
 	Ref(String),
-	Scope(Vec<Expr>),
-	IScope(Vec<Expr>),
+	Scope(HashMap<String, Expr>),
 	FnCall { fn_name: String, args: Vec<Expr> },
 	PrefixOp {op: TokenKind, expr: Box<Expr> },
 	InfixOp { op: TokenKind, lhs: Box<Expr>, rhs: Box<Expr> },
