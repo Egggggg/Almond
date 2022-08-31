@@ -5,7 +5,7 @@ use crate::lexer::tokens::TokenKind;
 use self::ast::Store;
 
 pub mod ast;
-pub mod parsing;
+pub mod expressions;
 
 #[derive(Debug)]
 pub struct Parser<'a> {
