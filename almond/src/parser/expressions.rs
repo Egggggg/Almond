@@ -2,40 +2,46 @@ use crate::lexer::tokens::TokenKind;
 
 use super::{Parser, ast::{Expr, Store}};
 
-// right side binding power for TokenKind::Not
-// not put in a function since its the only prefix operator
-const NOT_POWER: u8 = 51u8;
-
 impl<'a> Parser<'a> {
-	fn parse_expression(&mut self, binding_power: u8) -> Expr {
-		println!("{:#?}", self.peek());
+	fn parse_expression(&mut self, binding_power: u8) -> (Expr, bool) {
+		let next_requires_end = true;
+		println!("peek at start: {:#?}", self.peek());
+		println!("recurse");
 
 		let mut lhs = match self.peek().unwrap_or(TokenKind::EOF) {
 			TokenKind::Ident => {
-				self.next();
+				self.consume(TokenKind::Ident);
+
+				println!("{}", self.slice());
+				
 				Expr::Ref(self.slice().to_owned())
 			},
 			TokenKind::String => {
-				self.next();
+				self.consume(TokenKind::String);
+
 				let slice = self.slice();
 				let value = &slice[1..slice.len()-1];
 
 				Expr::from(value.to_owned())
 			},
 			TokenKind::Int(e) => {
-				self.next();
+				self.consume(TokenKind::Int(e));
+
 				Expr::from(e)
 			},
 			TokenKind::Float(e) => {
-				self.next();
+				self.consume(TokenKind::Float(e));
+
 				Expr::from(e)
 			},
 			TokenKind::True => {
-				self.next();
+				self.consume(TokenKind::True);
+
 				Expr::from(true)
 			},
 			TokenKind::False => {
-				self.next();
+				self.consume(TokenKind::False);
+
 				Expr::from(false)
 			},
 			TokenKind::LSquare => {
@@ -44,7 +50,7 @@ impl<'a> Parser<'a> {
 
 				loop {
 					let next = self.parse_expression(0);
-					out.push(next);
+					out.push(next.0);
 					
 					match self.peek().unwrap_or(TokenKind::EOF) {
 						TokenKind::Comma => self.consume(TokenKind::Comma),
@@ -61,22 +67,30 @@ impl<'a> Parser<'a> {
 				let expr = self.parse_expression(0);
 				self.consume(TokenKind::RParen);
 
-				expr
+				expr.0
 			},
-			TokenKind::Not => {
+			expr @ TokenKind::Not => {
 				self.consume(TokenKind::Not);
-				let expr = self.parse_expression(NOT_POWER);
+				let expr_bp: u8;
+
+				if let Some((_, bp)) = expr.prefix_binding_power() {
+					expr_bp = bp;
+				} else {
+					expr_bp = 0;
+				}
+
+				let expr = self.parse_expression(expr_bp);
 
 				Expr::PrefixOp { 
 					op: TokenKind::Not, 
-					expr: Box::new(expr),
+					expr: Box::new(expr.0),
 				}
 			},
 			TokenKind::If => {
 				self.consume(TokenKind::If);
-				let condition = Box::new(self.parse_expression(0));
+				let condition = Box::new(self.parse_expression(0).0);
 				self.consume(TokenKind::LCurly);
-				let then_block = Box::new(self.parse_expression(0));
+				let then_block = Box::new(self.parse_expression(0).0);
 				self.consume(TokenKind::RCurly);
 
 				// since all variables need a value, all ifs must have an else
@@ -87,10 +101,10 @@ impl<'a> Parser<'a> {
 						self.consume(TokenKind::LCurly);
 					},
 					TokenKind::If => {},
-					kind => panic!("Expected If or LCurly after Else, found {kind}"),
+					kind => panic!("Expected `If` or `LCurly` after `Else`, found {kind}"),
 				}
 
-				let else_block = Box::new(self.parse_expression(0));
+				let else_block = Box::new(self.parse_expression(0).0);
 				self.consume(TokenKind::RCurly);
 
 				Expr::Conditional { condition, then_block, else_block }
@@ -98,9 +112,24 @@ impl<'a> Parser<'a> {
 			kind => panic!("Unknown start of expression `{}`", kind),
 		};
 
+		if let Some(TokenKind::LSquare) = self.peek() {
+			self.consume(TokenKind::LSquare);
+			let index = self.parse_expression(0);
+
+			lhs = Expr::ArrayAccess { lhs: Box::new(lhs), index: Box::new(index.0) };
+			
+			self.consume(TokenKind::RSquare);
+		}
+
+		println!("lhs before loop: {lhs:#?}");
+
 		loop {
+			println!("binding power in loop: {binding_power}");
+			println!("loop");
+			println!("slice in loop: {}", self.slice());
+
 			let peek = self.peek().unwrap_or(TokenKind::EOF);
-			println!("{peek}");
+			println!("peek in loop: {peek}");
 
 			let op = match peek {
 				op @ TokenKind::Equals
@@ -124,14 +153,12 @@ impl<'a> Parser<'a> {
 				| TokenKind::RCurly
 				| TokenKind::RSquare
 				| TokenKind::RParen
-				| TokenKind::Comma => break,
-				TokenKind::End => {
-					self.consume(TokenKind::End);
-					println!("should break here");
-					break
-				},
+				| TokenKind::Comma
+				| TokenKind::End => break,
 				kind => panic!("Unknown operator: {}", kind),
 			};
+
+			println!("how");
 
 			if let Some((left_binding_power, right_binding_power)) = op.infix_binding_power() {
 				if left_binding_power < binding_power {
@@ -140,7 +167,11 @@ impl<'a> Parser<'a> {
 				
 				self.consume(&op);
 				let rhs = self.parse_expression(right_binding_power);
-				lhs = Expr::InfixOp { op: op.clone(), lhs: Box::new(lhs), rhs: Box::new(rhs) };
+				lhs = Expr::InfixOp { op: op.clone(), lhs: Box::new(lhs), rhs: Box::new(rhs.0) };
+
+				if let Some(TokenKind::RCurly) = self.peek() {
+					return (lhs, false)
+				}
 
 				continue;
 			}
@@ -148,36 +179,57 @@ impl<'a> Parser<'a> {
 			break;
 		}
 
-		lhs
+		println!("loop done");
+
+		(lhs, next_requires_end)
 	}
 
-	fn parse_assign(&mut self, ident: &'a str, output: &mut Store) {
+	/// returns whether the next token should be TokenKind::End
+	/// for cases like scopes and conditionals
+	fn parse_assign(&mut self, ident: &'a str, output: &mut Store) -> bool {
 		self.consume(TokenKind::Assign);
 
 		let value = self.parse_expression(0);
 
-		output.insert(ident.to_owned(), value);
+		output.insert(ident.to_owned(), value.0);
+
+		return value.1
 	}
 
 	pub(crate) fn parse_input(&mut self, output: &mut Store) {
 		loop {
 			let next = self.next();
 
-			match next.unwrap_or(TokenKind::EOF) {
+			let end_required = match next.unwrap_or(TokenKind::EOF) {
 				TokenKind::Ident => self.parse_assign(self.slice(), output),
 				TokenKind::Comment => continue,
 				TokenKind::EOF => return,
 				_ => panic!("Unexpected token: {}", self.slice()),
+			};
+
+			if end_required {
+				self.consume(TokenKind::End);
 			}
 		}
 	}
 }
 
 trait Operator {
+	fn prefix_binding_power(&self) -> Option<((), u8)>;
 	fn infix_binding_power(&self) -> Option<(u8, u8)>;
+	fn postfix_binding_power(&self) -> Option<(u8, ())>;
 }
 
 impl Operator for TokenKind {
+	fn prefix_binding_power(&self) -> Option<((), u8)> {
+		let result = match self {
+			TokenKind::Not => ((), 51),
+			_ => return None,
+		};
+
+		Some(result)
+	}
+
 	fn infix_binding_power(&self) -> Option<(u8, u8)> {
 		let result = match self {
 			TokenKind::Or => (1, 2),
@@ -196,6 +248,15 @@ impl Operator for TokenKind {
 			TokenKind::Exp => (15, 16),
 			TokenKind::Range
 			| TokenKind::IRange => (17, 18),
+			_ => return None,
+		};
+
+		Some(result)
+	}
+
+	fn postfix_binding_power(&self) -> Option<(u8, ())> {
+		let result = match self {
+			TokenKind::LSquare => (53, ()),
 			_ => return None,
 		};
 
@@ -259,6 +320,30 @@ mod test {
 			Some(
 				&Expr::Literal(
 					Literal::Bool(true)
+				)
+			)
+		);
+	}
+
+	#[test]
+	fn multiple() {
+		let store = eval("nice = 23; cool = 7;");
+
+
+		assert_eq!(
+			store.get_ast("nice"),
+			Some(
+				&Expr::Literal(
+					Literal::Int(23)
+				)
+			)
+		);
+
+		assert_eq!(
+			store.get_ast("cool"),
+			Some(
+				&Expr::Literal(
+					Literal::Int(7)
 				)
 			)
 		);
@@ -532,7 +617,18 @@ mod test {
 
 		assert_eq!(
 			store.get_ast("cool"),
-			None
+			Some(
+				&Expr::ArrayAccess {
+					lhs: Box::new(
+						Expr::Ref("nice".to_owned())
+					),
+					index: Box::new(
+						Expr::Literal(
+							Literal::Int(3)
+						)
+					)
+				}
+			)
 		)
 	}
 
@@ -617,11 +713,13 @@ mod test {
 	fn conditional() {
 		let store = eval(r#"
 			nice = 10;
-			cool = if nice < 5 {
+			cool = if nice < 10 {
 				10
 			} else {
 				nice
 			}
+
+			epic = cool * 2;
 		"#);
 	}
 }

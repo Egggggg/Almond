@@ -36,15 +36,15 @@ impl<'a> Parser<'a> {
 	}
 
 	pub(crate) fn peek(&self) -> Option<TokenKind> {
-		self.next.clone()
+		self.next
 	}
 
 	pub(crate) fn next(&mut self) -> Option<TokenKind> {
-		self.current = self.next.clone();
+		self.current = self.next;
 		self.slice = self.lexer.slice();
 		self.next = self.lexer.next();
 
-		self.current.clone()
+		self.current
 	}
 
 	pub(crate) fn slice(&self) -> &'a str {

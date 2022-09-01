@@ -39,7 +39,7 @@ pub enum Expr {
 	PrefixOp {op: TokenKind, expr: Box<Expr> },
 	InfixOp { op: TokenKind, lhs: Box<Expr>, rhs: Box<Expr> },
     Conditional { condition: Box<Expr>, then_block: Box<Expr>, else_block: Box<Expr> },
-	ArrayAccess(usize),
+	ArrayAccess { lhs: Box<Expr>, index: Box<Expr> },
 }
 
 impl From<String> for Expr {
