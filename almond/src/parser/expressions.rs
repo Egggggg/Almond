@@ -8,6 +8,8 @@ const NOT_POWER: u8 = 51u8;
 
 impl<'a> Parser<'a> {
 	fn parse_expression(&mut self, binding_power: u8) -> Expr {
+		println!("{:#?}", self.peek());
+
 		let mut lhs = match self.peek().unwrap_or(TokenKind::EOF) {
 			TokenKind::Ident => {
 				self.next();
@@ -89,6 +91,7 @@ impl<'a> Parser<'a> {
 				}
 
 				let else_block = Box::new(self.parse_expression(0));
+				self.consume(TokenKind::RCurly);
 
 				Expr::Conditional { condition, then_block, else_block }
 			}
@@ -96,46 +99,50 @@ impl<'a> Parser<'a> {
 		};
 
 		loop {
-			if let Some(peek) = self.peek() {
-				let op = match peek {
-					op @ TokenKind::Equals
-					| op @ TokenKind::Lt
-					| op @ TokenKind::Gt
-					| op @ TokenKind::Lte
-					| op @ TokenKind::Gte
-					| op @ TokenKind::And
-					| op @ TokenKind::Or
-					| op @ TokenKind::Not
-					| op @ TokenKind::Add
-					| op @ TokenKind::Sub
-					| op @ TokenKind::Mul
-					| op @ TokenKind::Div
-					| op @ TokenKind::Mod
-					| op @ TokenKind::Exp
-					| op @ TokenKind::Range
-					| op @ TokenKind::IRange => op,
-					TokenKind::EOF => break,
-					TokenKind::RCurly
-					| TokenKind::RSquare
-					| TokenKind::RParen
-					| TokenKind::End
-					| TokenKind::Comma => break,
-					kind => panic!("Unknown operator: {}", kind),
-				};
+			let peek = self.peek().unwrap_or(TokenKind::EOF);
+			println!("{peek}");
 
-				if let Some((left_binding_power, right_binding_power)) = op.infix_binding_power() {
-					if left_binding_power < binding_power {
-						break;
-					}
-					
-					self.consume(&op);
-					let rhs = self.parse_expression(right_binding_power);
-					lhs = Expr::InfixOp { op: op.clone(), lhs: Box::new(lhs), rhs: Box::new(rhs) };
+			let op = match peek {
+				op @ TokenKind::Equals
+				| op @ TokenKind::Lt
+				| op @ TokenKind::Gt
+				| op @ TokenKind::Lte
+				| op @ TokenKind::Gte
+				| op @ TokenKind::And
+				| op @ TokenKind::Or
+				| op @ TokenKind::Not
+				| op @ TokenKind::Add
+				| op @ TokenKind::Sub
+				| op @ TokenKind::Mul
+				| op @ TokenKind::Div
+				| op @ TokenKind::Mod
+				| op @ TokenKind::Exp
+				| op @ TokenKind::Range
+				| op @ TokenKind::IRange => op,
+				TokenKind::EOF
+				| TokenKind::LCurly
+				| TokenKind::RCurly
+				| TokenKind::RSquare
+				| TokenKind::RParen
+				| TokenKind::Comma => break,
+				TokenKind::End => {
+					self.consume(TokenKind::End);
+					println!("should break here");
+					break
+				},
+				kind => panic!("Unknown operator: {}", kind),
+			};
 
-					continue;
+			if let Some((left_binding_power, right_binding_power)) = op.infix_binding_power() {
+				if left_binding_power < binding_power {
+					break;
 				}
+				
+				self.consume(&op);
+				let rhs = self.parse_expression(right_binding_power);
+				lhs = Expr::InfixOp { op: op.clone(), lhs: Box::new(lhs), rhs: Box::new(rhs) };
 
-				break;
+				continue;
 			}
 
 			break;
@@ -162,8 +169,6 @@ impl<'a> Parser<'a> {
 				TokenKind::EOF => return,
 				_ => panic!("Unexpected token: {}", self.slice()),
 			}
-
-			self.consume(TokenKind::End);
 		}
 	}
 }
@@ -204,12 +209,13 @@ mod test {
 
 	#[test]
 	fn atomics() {
-		let store = eval(r#"string = "nice";
-								int = 23;
-								float = 324.2356;
-								boolF = false;
-								boolT = true;
-							"#);
+		let store = eval(r#"
+			string = "nice";
+			int = 23;
+			float = 324.2356;
+			boolF = false;
+			boolT = true;
+		"#);
 
 
 		assert_eq!(
@@ -609,7 +615,13 @@ mod test {
 
 	#[test]
 	fn conditional() {
-		let store = eval("nice = 10; cool = if nice < 5 {
-								10")
+		let store = eval(r#"
+			nice = 10;
+			cool = if nice < 5 {
+				10
+			} else {
+				nice
+			}
+		"#);
 	}
 }
