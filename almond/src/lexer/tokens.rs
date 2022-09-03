@@ -1,4 +1,4 @@
-use logos::{Logos, Lexer};
+use logos::Logos;
 use std::fmt;
 
 #[derive(Logos, Clone, Copy, Debug, PartialEq)]

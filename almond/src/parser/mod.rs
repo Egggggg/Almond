@@ -40,6 +40,7 @@ impl<'a> Parser<'a> {
 	}
 
 	pub(crate) fn next(&mut self) -> Option<TokenKind> {
+		println!("===== next =====");
 		self.current = self.next;
 		self.slice = self.lexer.slice();
 		self.next = self.lexer.next();

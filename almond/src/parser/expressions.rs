@@ -4,15 +4,12 @@ use super::{Parser, ast::{Expr, Store}};
 
 impl<'a> Parser<'a> {
 	fn parse_expression(&mut self, binding_power: u8) -> (Expr, bool) {
-		let next_requires_end = true;
-		println!("peek at start: {:#?}", self.peek());
-		println!("recurse");
+		let mut next_requires_end = true;
+		let mut this_requires_end = true;
 
 		let mut lhs = match self.peek().unwrap_or(TokenKind::EOF) {
 			TokenKind::Ident => {
 				self.consume(TokenKind::Ident);
-
-				println!("{}", self.slice());
 				
 				Expr::Ref(self.slice().to_owned())
 			},
@@ -91,21 +88,36 @@ impl<'a> Parser<'a> {
 				let condition = Box::new(self.parse_expression(0).0);
 				self.consume(TokenKind::LCurly);
 				let then_block = Box::new(self.parse_expression(0).0);
+
+				match self.peek().unwrap_or(TokenKind::EOF) {
+					TokenKind::RCurly => {},
+					e @ TokenKind::End => self.consume(e),
+					kind => panic!("Expected `End` or `RCurly` after if block contents, found {kind}")
+				};
+
 				self.consume(TokenKind::RCurly);
 
 				// since all variables need a value, all ifs must have an else
 				self.consume(TokenKind::Else);
 
 				match self.peek().unwrap_or(TokenKind::EOF) {
-					TokenKind::LCurly => {
-						self.consume(TokenKind::LCurly);
-					},
+					e @ TokenKind::LCurly => self.consume(e),
 					TokenKind::If => {},
 					kind => panic!("Expected `If` or `LCurly` after `Else`, found {kind}"),
 				}
 
 				let else_block = Box::new(self.parse_expression(0).0);
+
+				match self.peek().unwrap_or(TokenKind::EOF) {
+					TokenKind::RCurly => {},
+					e @ TokenKind::End => self.consume(e),
+					kind => panic!("Expected `End` or `RCurly` after else block contents, found {kind}")
+				};
+
 				self.consume(TokenKind::RCurly);
+
+				next_requires_end = false;
+				this_requires_end = false;
 
 				Expr::Conditional { condition, then_block, else_block }
 			}
@@ -121,15 +133,8 @@ impl<'a> Parser<'a> {
 			self.consume(TokenKind::RSquare);
 		}
 
-		println!("lhs before loop: {lhs:#?}");
-
 		loop {
-			println!("binding power in loop: {binding_power}");
-			println!("loop");
-			println!("slice in loop: {}", self.slice());
-
 			let peek = self.peek().unwrap_or(TokenKind::EOF);
-			println!("peek in loop: {peek}");
 
 			let op = match peek {
 				op @ TokenKind::Equals
@@ -155,10 +160,14 @@ impl<'a> Parser<'a> {
 				| TokenKind::RParen
 				| TokenKind::Comma
 				| TokenKind::End => break,
-				kind => panic!("Unknown operator: {}", kind),
-			};
+				kind => {
+					if !this_requires_end {
+						break;
+					}
 
-			println!("how");
+					panic!("Unknown operator: {}", kind)
+				}
+			};
 
 			if let Some((left_binding_power, right_binding_power)) = op.infix_binding_power() {
 				if left_binding_power < binding_power {
@@ -178,8 +187,6 @@ impl<'a> Parser<'a> {
 
 			break;
 		}
-
-		println!("loop done");
 
 		(lhs, next_requires_end)
 	}
@@ -712,14 +719,69 @@ mod test {
 	#[test]
 	fn conditional() {
 		let store = eval(r#"
-			nice = 10;
+			nice = 4;
 			cool = if nice < 10 {
-				10
+				10;
 			} else {
-				nice
+				nice;
 			}
 
 			epic = cool * 2;
 		"#);
+
+		assert_eq!(
+			store.get_ast("nice"),
+			Some(
+				&Expr::Literal(
+					Literal::Int(4)
+				)
+			)
+		);
+
+		assert_eq!(
+			store.get_ast("cool"),
+			Some(
+				&Expr::Conditional {
+					condition: Box::new(
+						Expr::InfixOp {
+							lhs: Box::new(
+								Expr::Ref("nice".to_owned())
+							),
+							op: TokenKind::Lt,
+							rhs: Box::new(
+								Expr::Literal(
+									Literal::Int(10)
+								)
+							)
+						}
+					),
+					then_block: Box::new(
+						Expr::Literal(
+							Literal::Int(10)
+						)
+					),
+					else_block: Box::new(
+						Expr::Ref("nice".to_owned())
+					)
+				}
+			)
+		);
+
+		assert_eq!(
+			store.get_ast("epic"),
+			Some(
+				&Expr::InfixOp {
+					op: TokenKind::Mul,
+					lhs: Box::new(
+						Expr::Ref("cool".to_owned())
+					),
+					rhs: Box::new(
+						Expr::Literal(
+							Literal::Int(2)
+						)
+					)
+				}
+			)
+		)
 	}
 }
