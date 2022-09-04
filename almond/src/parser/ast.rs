@@ -86,6 +86,11 @@ impl Store {
 
 	pub fn insert<T: Into<String>>(&mut self, key: T, expr: Expr) -> Option<Expr> {
 		let key = key.into();
+
+		if self.contents.contains_key(key) {
+			panic!("Variable `{key}` already exists")
+		}
+
 		self.contents.insert(key, expr)
 	}
 

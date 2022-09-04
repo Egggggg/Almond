@@ -7,6 +7,8 @@ impl<'a> Parser<'a> {
 		let mut next_requires_end = true;
 		let mut this_requires_end = true;
 
+		println!("peek at start: {:#?}", self.peek());
+
 		let mut lhs = match self.peek().unwrap_or(TokenKind::EOF) {
 			TokenKind::Ident => {
 				self.consume(TokenKind::Ident);
@@ -84,6 +86,8 @@ impl<'a> Parser<'a> {
 				}
 			},
 			TokenKind::If => {
+				let mut requires_rcurly = true;
+
 				self.consume(TokenKind::If);
 				let condition = Box::new(self.parse_expression(0).0);
 				self.consume(TokenKind::LCurly);
@@ -92,7 +96,7 @@ impl<'a> Parser<'a> {
 				match self.peek().unwrap_or(TokenKind::EOF) {
 					TokenKind::RCurly => {},
 					e @ TokenKind::End => self.consume(e),
-					kind => panic!("Expected `End` or `RCurly` after if block contents, found {kind}")
+					kind => panic!("Expected `RCurly` after If block contents, found {kind}")
 				};
 
 				self.consume(TokenKind::RCurly);
@@ -102,7 +106,7 @@ impl<'a> Parser<'a> {
 
 				match self.peek().unwrap_or(TokenKind::EOF) {
 					e @ TokenKind::LCurly => self.consume(e),
-					TokenKind::If => {},
+					TokenKind::If => requires_rcurly = false,
 					kind => panic!("Expected `If` or `LCurly` after `Else`, found {kind}"),
 				}
 
@@ -111,16 +115,26 @@ impl<'a> Parser<'a> {
 				match self.peek().unwrap_or(TokenKind::EOF) {
 					TokenKind::RCurly => {},
 					e @ TokenKind::End => self.consume(e),
-					kind => panic!("Expected `End` or `RCurly` after else block contents, found {kind}")
+					TokenKind::Ident => {
+						if requires_rcurly {
+							panic!("Expected `RCurly` after Else block contents, found Ident")
+						}
+					}
+					kind => panic!("Expected `RCurly` after Else block contents, found {kind}")
 				};
 
-				self.consume(TokenKind::RCurly);
+				if requires_rcurly {
+					self.consume(TokenKind::RCurly);
+				}
 
 				next_requires_end = false;
 				this_requires_end = false;
 
 				Expr::Conditional { condition, then_block, else_block }
-			}
+			},
+			TokenKind::Scope => {
+
+			},
 			kind => panic!("Unknown start of expression `{}`", kind),
 		};
 
@@ -159,7 +173,8 @@ impl<'a> Parser<'a> {
 				| TokenKind::RSquare
 				| TokenKind::RParen
 				| TokenKind::Comma
-				| TokenKind::End => break,
+				| TokenKind::End
+				| TokenKind::As => break,
 				kind => {
 					if !this_requires_end {
 						break;
@@ -272,8 +287,28 @@ impl Operator for TokenKind {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{parser::{eval, ast::{Expr, Literal}}, lexer::tokens::TokenKind};
+
+	#[test]
+	fn multiple() {
+		let store = eval("nice = 23; cool = 7;");
+
+
+		assert_eq!(
+			store.get_ast("nice"),
+			Some(
+				&Expr::from(23)
+			)
+		);
+
+		assert_eq!(
+			store.get_ast("cool"),
+			Some(
+				&Expr::from(7)
+			)
+		);
+	}
 
 	#[test]
 	fn atomics() {
@@ -289,75 +324,41 @@ mod test {
 		assert_eq!(
 			store.get_ast("string"),
 			Some(
-				&Expr::Literal(
-					Literal::String("nice".to_owned())
-				)
+				&Expr::from("nice".to_owned())
 			)
 		);
 
 		assert_eq!(
 			store.get_ast("int"),
 			Some(
-				&Expr::Literal(
-					Literal::Int(23)
-				)
+				&Expr::from(23)
 			)
 		);
 
 		assert_eq!(
 			store.get_ast("float"),
 			Some(
-				&Expr::Literal(
-					Literal::Float(324.2356)
-				)
+				&Expr::from(324.2356)
 			)
 		);
 
 		assert_eq!(
 			store.get_ast("boolF"),
 			Some(
-				&Expr::Literal(
-					Literal::Bool(false)
-				)
+				&Expr::from(false)
 			)
 		);
 
 		assert_eq!(
 			store.get_ast("boolT"),
 			Some(
-				&Expr::Literal(
-					Literal::Bool(true)
-				)
+				&Expr::from(true)
 			)
 		);
 	}
 
 	#[test]
-	fn multiple() {
-		let store = eval("nice = 23; cool = 7;");
-
-
-		assert_eq!(
-			store.get_ast("nice"),
-			Some(
-				&Expr::Literal(
-					Literal::Int(23)
-				)
-			)
-		);
-
-		assert_eq!(
-			store.get_ast("cool"),
-			Some(
-				&Expr::Literal(
-					Literal::Int(7)
-				)
-			)
-		);
-	}
-
-	#[test]
-	fn expr() {
+	fn infix() {
 		let store = eval("nice = 23 + 7;");
 
 		assert_eq!(
@@ -366,14 +367,10 @@ mod test {
 				&Expr::InfixOp { 
 					op: TokenKind::Add,
 					lhs: Box::new(
-						Expr::Literal(
-							Literal::Int(23)
-						)
+						Expr::from(23)
 					),
 					rhs: Box::new(
-						Expr::Literal(
-							Literal::Int(7)
-						)
+						Expr::from(7)
 					)
 				} 
 			)
@@ -381,7 +378,7 @@ mod test {
 	}
 
 	#[test]
-	fn chained_expr() {
+	fn infix_chained() {
 		let store = eval("nice = 23 + 7 * 3;");
 
 		assert_eq!(
@@ -390,22 +387,16 @@ mod test {
 				&Expr::InfixOp {
 					op: TokenKind::Add,
 					lhs: Box::new(
-						Expr::Literal(
-							Literal::Int(23)
-						)
+						Expr::from(23)
 					),
 					rhs: Box::new(
 						Expr::InfixOp {
 							op: TokenKind::Mul,
 							lhs: Box::new(
-								Expr::Literal(
-									Literal::Int(7)
-								)
+								Expr::from(7)
 							),
 							rhs: Box::new(
-								Expr::Literal(
-									Literal::Int(3)
-								)
+								Expr::from(3)
 							)
 						}
 					)
@@ -415,7 +406,7 @@ mod test {
 	}
 
 	#[test]
-	fn grouped_expr() {
+	fn infix_grouped() {
 		let store = eval("nice = (23 + 7) * 3;");
 
 		assert_eq!(
@@ -427,21 +418,15 @@ mod test {
 						Expr::InfixOp {
 							op: TokenKind::Add,
 							lhs: Box::new(
-								Expr::Literal(
-									Literal::Int(23)
-								)
+								Expr::from(23)
 							),
 							rhs: Box::new(
-								Expr::Literal(
-									Literal::Int(7)
-								)
+								Expr::from(7)
 							)
 						}
 					),
 					rhs: Box::new(
-						Expr::Literal(
-							Literal::Int(3)
-						)
+						Expr::from(3)
 					)
 				}
 			)
@@ -458,21 +443,11 @@ mod test {
 				&Expr::Literal(
 					Literal::Array(
 						vec![
-							Expr::Literal(
-								Literal::String("cool".to_owned())
-							),
-							Expr::Literal(
-								Literal::Int(1)
-							),
-							Expr::Literal(
-								Literal::Float(3.245)
-							),
-							Expr::Literal(
-								Literal::Bool(true)
-							),
-							Expr::Literal(
-								Literal::Bool(false)
-							)
+							Expr::from("cool".to_owned()),
+							Expr::from(1),
+							Expr::from(3.245),
+							Expr::from(true),
+							Expr::from(false)
 						]
 					)
 				)
@@ -481,7 +456,7 @@ mod test {
 	}
 
 	#[test]
-	fn nested_array() {
+	fn array_nested() {
 		let store = eval("nice = [1, 2, [3, 4]];");
 
 		assert_eq!(
@@ -490,21 +465,13 @@ mod test {
 				&Expr::Literal(
 					Literal::Array(
 						vec![
-							Expr::Literal(
-								Literal::Int(1)
-							),
-							Expr::Literal(
-								Literal::Int(2)
-							),
+							Expr::from(1),
+							Expr::from(2),
 							Expr::Literal(
 								Literal::Array(
 									vec![
-										Expr::Literal(
-											Literal::Int(3)
-										),
-										Expr::Literal(
-											Literal::Int(4)
-										)
+										Expr::from(3),
+										Expr::from(4)
 									]
 								)
 							)
@@ -528,35 +495,23 @@ mod test {
 							Expr::InfixOp {
 								op: TokenKind::Add,
 								lhs: Box::new(
-									Expr::Literal(
-										Literal::Int(1)
-									)
+									Expr::from(1)
 								),
 								rhs: Box::new(
-									Expr::Literal(
-										Literal::Int(4)
-									)
+									Expr::from(4)
 								)
 							},
-							Expr::Literal(
-								Literal::Int(6)
-							),
+							Expr::from(6),
 							Expr::InfixOp {
 								op: TokenKind::Mul,
 								lhs: Box::new(
-									Expr::Literal(
-										Literal::Int(5)
-									)
+									Expr::from(5)
 								),
 								rhs: Box::new(
-									Expr::Literal(
-										Literal::Int(2)
-									)
+									Expr::from(2)
 								)
 							},
-							Expr::Literal(
-								Literal::Int(11)
-							)
+							Expr::from(11)
 						]
 					)
 				)
@@ -577,18 +532,10 @@ mod test {
 						Expr::Literal(
 							Literal::Array(
 								vec![
-									Expr::Literal(
-										Literal::Int(1)
-									),
-									Expr::Literal(
-										Literal::Int(2)
-									),
-									Expr::Literal(
-										Literal::Int(3)
-									),
-									Expr::Literal(
-										Literal::Int(4)
-									),
+									Expr::from(1),
+									Expr::from(2),
+									Expr::from(3),
+									Expr::from(4),
 								]
 							)
 						)
@@ -597,18 +544,10 @@ mod test {
 						Expr::Literal(
 							Literal::Array(
 								vec![
-									Expr::Literal(
-										Literal::Int(4)
-									),
-									Expr::Literal(
-										Literal::Int(3)
-									),
-									Expr::Literal(
-										Literal::Int(2)
-									),
-									Expr::Literal(
-										Literal::Int(1)
-									),
+									Expr::from(4),
+									Expr::from(3),
+									Expr::from(2),
+									Expr::from(1),
 								]
 							)
 						)
@@ -630,9 +569,7 @@ mod test {
 						Expr::Ref("nice".to_owned())
 					),
 					index: Box::new(
-						Expr::Literal(
-							Literal::Int(3)
-						)
+						Expr::from(3)
 					)
 				}
 			)
@@ -649,14 +586,10 @@ mod test {
 				&Expr::InfixOp {
 					op: TokenKind::Range,
 					lhs: Box::new(
-						Expr::Literal(
-							Literal::Int(1)
-						)
+						Expr::from(1)
 					),
 					rhs: Box::new(
-						Expr::Literal(
-							Literal::Int(5)
-						)
+						Expr::from(5)
 					)
 				}
 			)
@@ -668,14 +601,10 @@ mod test {
 				&Expr::InfixOp {
 					op: TokenKind::IRange,
 					lhs: Box::new(
-						Expr::Literal(
-							Literal::Int(1)
-						)
+						Expr::from(1)
 					),
 					rhs: Box::new(
-						Expr::Literal(
-							Literal::Int(5)
-						)
+						Expr::from(5)
 					)
 				}
 			)
@@ -695,21 +624,15 @@ mod test {
 						Expr::InfixOp {
 							op: TokenKind::Range,
 							lhs: Box::new(
-								Expr::Literal(
-									Literal::Int(1)
-								)
+								Expr::from(1)
 							),
 							rhs: Box::new(
-								Expr::Literal(
-									Literal::Int(5)
-								)
+								Expr::from(5)
 							)
 						}
 					),
 					rhs: Box::new(
-						Expr::Literal(
-							Literal::Int(3)
-						)
+						Expr::from(3)
 					)
 				}
 			)
@@ -721,22 +644,13 @@ mod test {
 		let store = eval(r#"
 			nice = 4;
 			cool = if nice < 10 {
-				10;
+				10
 			} else {
-				nice;
+				nice
 			}
 
 			epic = cool * 2;
 		"#);
-
-		assert_eq!(
-			store.get_ast("nice"),
-			Some(
-				&Expr::Literal(
-					Literal::Int(4)
-				)
-			)
-		);
 
 		assert_eq!(
 			store.get_ast("cool"),
@@ -749,16 +663,12 @@ mod test {
 							),
 							op: TokenKind::Lt,
 							rhs: Box::new(
-								Expr::Literal(
-									Literal::Int(10)
-								)
+								Expr::from(10)
 							)
 						}
 					),
 					then_block: Box::new(
-						Expr::Literal(
-							Literal::Int(10)
-						)
+						Expr::from(10)
 					),
 					else_block: Box::new(
 						Expr::Ref("nice".to_owned())
@@ -766,19 +676,118 @@ mod test {
 				}
 			)
 		);
+	}
+
+	#[test]
+	fn conditional_else_if() {
+		let store = eval(r#"
+			nice = 15;
+			cool = if nice < 10 {
+				10
+			} else if nice < 25 {
+				25
+			} else {
+				nice
+			}
+		"#);
 
 		assert_eq!(
-			store.get_ast("epic"),
+			store.get_ast("cool"),
 			Some(
-				&Expr::InfixOp {
-					op: TokenKind::Mul,
-					lhs: Box::new(
-						Expr::Ref("cool".to_owned())
+				&Expr::Conditional {
+					condition: Box::new(
+						Expr::InfixOp {
+							op: TokenKind::Lt,
+							lhs: Box::new(
+								Expr::Ref("nice".to_owned()),
+							),
+							rhs: Box::new(
+								Expr::from(10)
+							)
+						}
 					),
-					rhs: Box::new(
-						Expr::Literal(
-							Literal::Int(2)
-						)
+					then_block: Box::new(
+						Expr::from(10)
+					),
+					else_block: Box::new(
+						Expr::Conditional {
+							condition: Box::new(
+								Expr::InfixOp {
+									op: TokenKind::Lt,
+									lhs: Box::new(
+										Expr::Ref("nice".to_owned())
+									),
+									rhs: Box::new(
+										Expr::from(25)
+									)
+								}
+							),
+							then_block: Box::new(
+								Expr::from(25)
+							),
+							else_block: Box::new(
+								Expr::Ref("nice".to_owned())
+							)
+						}
+					)
+				}
+			)
+		)
+	}
+
+	#[test]
+	fn conditional_nested() {
+		let store = eval(r#"
+			nice = 15;
+			cool = if nice < 25 {
+				if nice > 10 {
+					25
+				} else {
+					10
+				}
+			} else {
+				nice
+			}
+		"#);
+
+		assert_eq!(
+			store.get_ast("cool"),
+			Some(
+				&Expr::Conditional {
+					condition: Box::new(
+						Expr::InfixOp {
+							op: TokenKind::Lt,
+							lhs: Box::new(
+								Expr::Ref("nice".to_owned())
+							),
+							rhs: Box::new(
+								Expr::from(25)
+							)
+						}
+					),
+					then_block: Box::new(
+						Expr::Conditional {
+							condition: Box::new(
+								Expr::InfixOp {
+									op: TokenKind::Gt,
+									lhs: Box::new(
+										Expr::Ref("nice".to_owned())
+									),
+									rhs: Box::new(
+										Expr::from(10)
+									)
+								}
+							),
+							then_block: Box::new(
+								Expr::from(25)
+							),
+							else_block: Box::new(
+								Expr::from(10)
+							)
+						}
+					),
+					else_block: Box::new(
+						Expr::Ref("nice".to_owned())
 					)
 				}
 			)
