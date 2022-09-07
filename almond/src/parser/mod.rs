@@ -8,6 +8,7 @@ use self::ast::Store;
 
 pub mod ast;
 pub mod expressions;
+pub mod errors;
 
 #[derive(Debug)]
 pub struct Parser<'a> {

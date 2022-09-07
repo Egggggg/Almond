@@ -8,14 +8,16 @@ pub enum TokenKind {
     Ident,
     #[token("=")]
     Assign,
+	#[token(":=")]
+	Walrus,
     #[token(";")]
     End,
     #[regex(r"\$[a-zA-Z][\w_]*")]
     Scope,
-    #[token("input")]
-    Input,
-	#[token("output")]
-	Output,
+    #[token("import")]
+    Import,
+	#[token("export")]
+	Export,
     #[token("as")]
     As,
     #[token(",")]
@@ -111,10 +113,11 @@ impl From<&TokenKind> for String {
 		let out = match other {
 			TokenKind::Ident => "Ident",
 			TokenKind::Assign => "Assign",
+			TokenKind::Walrus => "Walrus",
 			TokenKind::End => "End",
 			TokenKind::Scope => "Scope",
-			TokenKind::Input => "Input",
-			TokenKind::Output => "Output",
+			TokenKind::Import => "Export",
+			TokenKind::Export => "Import",
 			TokenKind::As => "As",
 			TokenKind::Comma => "Comma",
 			TokenKind::Access => "Access",

@@ -1,13 +1,11 @@
 use crate::lexer::tokens::TokenKind;
 
-use super::{Parser, ast::{Expr, Store}};
+use super::{Parser, ast::{Expr, Store, Input, InputType}, errors::{SyntaxError, AlmondError}};
 
 impl<'a> Parser<'a> {
-	fn parse_expression(&mut self, binding_power: u8) -> (Expr, bool) {
+	fn parse_expression(&mut self, binding_power: u8) -> Result<(Expr, bool), SyntaxError> {
 		let mut next_requires_end = true;
 		let mut this_requires_end = true;
-
-		println!("peek at start: {:#?}", self.peek());
 
 		let mut lhs = match self.peek().unwrap_or(TokenKind::EOF) {
 			TokenKind::Ident => {
@@ -48,13 +46,13 @@ impl<'a> Parser<'a> {
 				let mut out: Vec<Expr> = Vec::new();
 
 				loop {
-					let next = self.parse_expression(0);
+					let next = self.parse_expression(0)?;
 					out.push(next.0);
 					
 					match self.peek().unwrap_or(TokenKind::EOF) {
 						TokenKind::Comma => self.consume(TokenKind::Comma),
 						TokenKind::RSquare => break,
-						kind => panic!("Expected Comma or RSquare, got {}", kind),
+						kind => return Err(SyntaxError::new(kind, self.span())),
 					}
 				}
 
@@ -63,7 +61,7 @@ impl<'a> Parser<'a> {
 			},
 			TokenKind::LParen => {
 				self.consume(TokenKind::LParen);
-				let expr = self.parse_expression(0);
+				let expr = self.parse_expression(0)?;
 				self.consume(TokenKind::RParen);
 
 				expr.0
@@ -78,7 +76,7 @@ impl<'a> Parser<'a> {
 					expr_bp = 0;
 				}
 
-				let expr = self.parse_expression(expr_bp);
+				let expr = self.parse_expression(expr_bp)?;
 
 				Expr::PrefixOp { 
 					op: TokenKind::Not, 
@@ -89,14 +87,14 @@ impl<'a> Parser<'a> {
 				let mut requires_rcurly = true;
 
 				self.consume(TokenKind::If);
-				let condition = Box::new(self.parse_expression(0).0);
+				let condition = Box::new(self.parse_expression(0)?.0);
 				self.consume(TokenKind::LCurly);
-				let then_block = Box::new(self.parse_expression(0).0);
+				let then_block = Box::new(self.parse_expression(0)?.0);
 
 				match self.peek().unwrap_or(TokenKind::EOF) {
 					TokenKind::RCurly => {},
 					e @ TokenKind::End => self.consume(e),
-					kind => panic!("Expected `RCurly` after If block contents, found {kind}")
+					kind => return Err(SyntaxError::new(kind, self.span()))
 				};
 
 				self.consume(TokenKind::RCurly);
@@ -107,20 +105,20 @@ impl<'a> Parser<'a> {
 				match self.peek().unwrap_or(TokenKind::EOF) {
 					e @ TokenKind::LCurly => self.consume(e),
 					TokenKind::If => requires_rcurly = false,
-					kind => panic!("Expected `If` or `LCurly` after `Else`, found {kind}"),
+					kind => return Err(SyntaxError::new(kind, self.span())),
 				}
 
-				let else_block = Box::new(self.parse_expression(0).0);
+				let else_block = Box::new(self.parse_expression(0)?.0);
 
 				match self.peek().unwrap_or(TokenKind::EOF) {
 					TokenKind::RCurly => {},
 					e @ TokenKind::End => self.consume(e),
 					TokenKind::Ident => {
 						if requires_rcurly {
-							panic!("Expected `RCurly` after Else block contents, found Ident")
+							return Err(SyntaxError::new(TokenKind::Ident, self.span()))
 						}
 					}
-					kind => panic!("Expected `RCurly` after Else block contents, found {kind}")
+					kind => return Err(SyntaxError::new(kind, self.span()))
 				};
 
 				if requires_rcurly {
@@ -132,15 +130,12 @@ impl<'a> Parser<'a> {
 
 				Expr::Conditional { condition, then_block, else_block }
 			},
-			TokenKind::Scope => {
-
-			},
-			kind => panic!("Unknown start of expression `{}`", kind),
+			kind => return Err(SyntaxError::new(kind, self.span())),
 		};
 
 		if let Some(TokenKind::LSquare) = self.peek() {
 			self.consume(TokenKind::LSquare);
-			let index = self.parse_expression(0);
+			let index = self.parse_expression(0)?;
 
 			lhs = Expr::ArrayAccess { lhs: Box::new(lhs), index: Box::new(index.0) };
 			
@@ -180,7 +175,7 @@ impl<'a> Parser<'a> {
 						break;
 					}
 
-					panic!("Unknown operator: {}", kind)
+					return Err(SyntaxError::new(kind, self.span()))
 				}
 			};
 
@@ -190,11 +185,11 @@ impl<'a> Parser<'a> {
 				}
 				
 				self.consume(&op);
-				let rhs = self.parse_expression(right_binding_power);
+				let rhs = self.parse_expression(right_binding_power)?;
 				lhs = Expr::InfixOp { op: op.clone(), lhs: Box::new(lhs), rhs: Box::new(rhs.0) };
 
 				if let Some(TokenKind::RCurly) = self.peek() {
-					return (lhs, false)
+					return Ok((lhs, false))
 				}
 
 				continue;
@@ -203,30 +198,50 @@ impl<'a> Parser<'a> {
 			break;
 		}
 
-		(lhs, next_requires_end)
+		Ok((lhs, next_requires_end))
 	}
 
 	/// returns whether the next token should be TokenKind::End
 	/// for cases like scopes and conditionals
-	fn parse_assign(&mut self, ident: &'a str, output: &mut Store) -> bool {
+	fn parse_assign(&mut self, ident: &'a str, output: &mut Store) -> Result<bool, SyntaxError> {
 		self.consume(TokenKind::Assign);
 
-		let value = self.parse_expression(0);
+		let value = self.parse_expression(0)?;
 
 		output.insert(ident.to_owned(), value.0);
 
-		return value.1
+		Ok(value.1)
 	}
 
-	pub(crate) fn parse_input(&mut self, output: &mut Store) {
+	fn parse_import(&mut self, )
+
+	fn parse_imports(&mut self, output: &mut Store) {
+		self.consume(TokenKind::Import);
+
+		match self.peek().unwrap_or(TokenKind::EOF) {
+			TokenKind::Ident => {
+				self.consume(TokenKind::Ident);
+				let ident = self.slice();
+				let input = Input { static_type: InputType::Any, default: None, current: None };
+
+				output.insert_input(ident, input);
+			}
+		}
+	}
+
+	pub(crate) fn parse_input<T: AlmondError>(&mut self, output: &mut Store) -> Result<&mut Store, T> {
 		loop {
 			let next = self.next();
 
 			let end_required = match next.unwrap_or(TokenKind::EOF) {
-				TokenKind::Ident => self.parse_assign(self.slice(), output),
+				TokenKind::Ident => self.parse_assign(self.slice(), output)?,
+				TokenKind::Import => {
+					self.parse_import(output);
+					true
+				},
 				TokenKind::Comment => continue,
-				TokenKind::EOF => return,
-				_ => panic!("Unexpected token: {}", self.slice()),
+				TokenKind::EOF => return Ok(output),
+				kind => return Err(SyntaxError::new(kind, self.span())),
 			};
 
 			if end_required {

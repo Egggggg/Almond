@@ -2,6 +2,18 @@ use std::collections::HashMap;
 
 use crate::lexer::tokens::TokenKind;
 
+use super::errors::NameConflictError;
+
+#[derive(Debug)]
+pub enum InputType {
+	String,
+	Int,
+	Float,
+	Bool,
+	Array,
+	Any,
+}
+
 #[derive(Debug, Clone)]
 pub enum Literal {
     String(String),
@@ -40,6 +52,7 @@ pub enum Expr {
 	InfixOp { op: TokenKind, lhs: Box<Expr>, rhs: Box<Expr> },
     Conditional { condition: Box<Expr>, then_block: Box<Expr>, else_block: Box<Expr> },
 	ArrayAccess { lhs: Box<Expr>, index: Box<Expr> },
+	Import,
 }
 
 impl From<String> for Expr {
@@ -73,25 +86,45 @@ impl From<Vec<Expr>> for Expr {
 }
 
 #[derive(Debug)]
+pub struct Input {
+	pub static_type: InputType,
+	pub default: Option<Expr>,
+	pub current: Option<Literal>,
+}
+
+#[derive(Debug)]
 pub struct Store {
 	pub contents: HashMap<String, Expr>,
+	pub inputs: HashMap<String, Input>,
+	pub outputs: Vec<String>,
 }
 
 impl Store {
 	pub fn new() -> Store {
 		let contents: HashMap<String, Expr> = HashMap::new();
+		let inputs: HashMap<String, Input> = HashMap::new();
+		let outputs: Vec<String> = Vec::new();
 		
-		Store { contents }
+		
+		Store { contents, inputs, outputs }
 	}
 
-	pub fn insert<T: Into<String>>(&mut self, key: T, expr: Expr) -> Option<Expr> {
+	pub fn insert<T: Into<String>>(&mut self, key: T, expr: Expr) -> Result<Option<Expr>, NameConflictError> {
 		let key = key.into();
 
-		if self.contents.contains_key(key) {
-			panic!("Variable `{key}` already exists")
+		if self.contents.contains_key(&key) {
+			return Err(NameConflictError::new(key, "global"));
 		}
 
-		self.contents.insert(key, expr)
+		Ok(self.contents.insert(key, expr))
+	}
+
+	pub fn insert_input<T: Into<String>>(&mut self, key: T, input: Input) -> Result<Option<Input>, NameConflictError> {
+		let key = key.into();
+
+		self.insert(key, Expr::Import)?;
+
+		Ok(self.inputs.insert(key, input))
 	}
 
 	#[cfg(test)]
